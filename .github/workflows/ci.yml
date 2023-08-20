@@ -1,0 +1,34 @@
+name: CI
+
+on: push
+
+jobs:
+  test:
+    name: ${{ matrix.lisp }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # For now, I'm only targeting SBCL and Linux. Add more if necessary.
+        lisp: [sbcl-bin]
+        os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v1
+      # TODO(topi): These should be baked into their own container to be used for CI,
+      # so that these wouldn't need to be installed on every run.
+      - name: Install build-essential
+        run: sudo apt-get install -y build-essential
+      - name: Install Roswell
+        env:
+          LISP: ${{ matrix.lisp }}
+          ROSWELL_INSTALL_DIR: /usr
+        run: |
+          curl -L https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh | sh
+      - name: Install Ultralisp
+        run: ros -e '(ql-dist:install-dist "http://dist.ultralisp.org/" :prompt nil)'
+      - name: Install Rove
+        run: ros install rove
+      - name: Build Sila
+        run: make
+      - name: Run tests
+        run: make test
