@@ -27,10 +27,10 @@ jobs:
       - name: Install Ultralisp
         run: ros -e '(ql-dist:install-dist "http://dist.ultralisp.org/" :prompt nil)'
       - name: Install Rove
-        run: ros install rove
+        run: |
+          ros install rove
+          echo "${HOME}/.roswell/bin" >> $GITHUB_PATH
       - name: Build Sila
         run: make
       - name: Run tests
-        run: |
-          PATH="~/.roswell/bin:$PATH"
-          make test
+        run: make test
