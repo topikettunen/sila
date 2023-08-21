@@ -31,4 +31,6 @@ jobs:
       - name: Build Sila
         run: make
       - name: Run tests
-        run: make test
+        run: |
+          PATH="~/.roswell/bin:$PATH"
+          make test
