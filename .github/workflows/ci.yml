@@ -13,7 +13,7 @@ jobs:
         os: [ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       # TODO(topi): These should be baked into their own container to be used for CI,
       # so that these wouldn't need to be installed on every run.
       - name: Install build-essential
