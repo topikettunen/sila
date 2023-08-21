@@ -2,16 +2,12 @@
   :version "0.0.1"
   :author "Topi Kettunen <topi@topikettunen.com>"
   :license "MIT"
-  :depends-on ("unix-opts")
   :components ((:module "src"
                 :components
                 ((:file "conditions")
                  (:file "lexer")
                  (:file "sila"))))
   :description "Sila programming language"
-  :build-operation "program-op" ;; leave as is
-  :build-pathname "sila"
-  :entry-point "sila:main"
   :in-order-to ((test-op (test-op "sila/tests"))))
 
 (defsystem "sila/tests"

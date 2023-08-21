@@ -29,6 +29,7 @@
       (declare (ignore out err))
       (= expected-rc got-rc))))
 
+#+linux
 (deftest test-compilation-and-compare-rc
   (ok (compile-program-and-compare-rc "0" 0))
   (ok (compile-program-and-compare-rc "5 + 40 - 20" 25)))

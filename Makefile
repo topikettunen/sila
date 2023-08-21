@@ -1,18 +1,10 @@
-LISP ?= ros -Q run
-
 .PHONY: build
 build:
-	$(LISP) --load sila.asd \
-		--eval '(ql:quickload :sila)' \
-		--eval '(asdf:make :sila)' \
-		--eval '(quit)'
+	ros build sila.ros
 
 .PHONY: test
 test:
-	$(LISP) --load sila.asd \
-		--eval '(ql:quickload :sila)' \
-		--eval '(asdf:test-system :sila)' \
-		--eval '(quit)'
+	rove sila.asd
 
 .PHONY: docker-build
 docker-build:

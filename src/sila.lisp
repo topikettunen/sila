@@ -7,20 +7,8 @@
                 #:token-kind
                 #:token-val
                 #:token-next)
-  (:export #:main))
+  (:export #:emit-asm))
 (in-package #:sila)
-
-(defun main ()
-  "Sila programming language entrypoint."
-  (multiple-value-bind (options free-args)
-      (opts:get-opts)
-    ;; TODO(topi): Add some useful options.
-    (declare (ignore options))
-    (unless (= (length free-args) 1)
-      (format *error-output* "Invalid number of arguments, expected 1.~%")
-      (opts:exit 1))
-    (format *standard-output* (emit-asm (first free-args)))
-    (opts:exit)))
 
 (defun emit-asm (src)
   "Emit assembly code from given source code. Currently emits only x86-64 and only Linux
