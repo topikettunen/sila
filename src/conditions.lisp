@@ -4,14 +4,18 @@
 (in-package #:sila/conditions)
 
 (defun format-lexer-error (stream pos input msg)
-  (format stream "Lexer error:~%~%~a~%~{a~}^ ~a"
+  "Print lexer error in format like:
+
+Lexer error:
+
+1+a1
+  ^ msg
+"
+  (format stream "Lexer error:~%~%~a~%~{~a~}^ ~a"
           input (make-list pos :initial-element #\Space) msg))
 
 (define-condition lexer-error (error)
-  ((token :initarg :token
-          :initform nil
-          :reader token)
-   (token-position :initarg :token-position
+  ((token-position :initarg :token-position
                    :initform nil
                    :reader token-position)
    (error-msg :initarg :error-msg

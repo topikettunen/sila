@@ -76,7 +76,6 @@
                        (error 'lexer-error
                               :lexer-input src
                               :error-msg "Invalid token."
-                              :token (char src src-pos)
                               :token-position src-pos)))))
     ;; No more tokens.
     (setf (token-next cur) (make-token :kind :eof

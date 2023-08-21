@@ -16,4 +16,4 @@ docker-run:
 
 .PHONY: clean
 clean:
-	rm -rf sila tmp*
+	rm -rf sila tmp* src/*.fasl tests/*.fasl

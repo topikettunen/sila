@@ -2,6 +2,7 @@
   :version "0.0.1"
   :author "Topi Kettunen <topi@topikettunen.com>"
   :license "MIT"
+  :depends-on ()
   :components ((:module "src"
                 :components
                 ((:file "conditions")
