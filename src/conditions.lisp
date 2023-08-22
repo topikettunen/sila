@@ -1,6 +1,7 @@
 (defpackage #:sila/conditions
   (:use #:cl)
-  (:export #:lexer-error))
+  (:export #:lexer-error
+           #:parser-error))
 (in-package #:sila/conditions)
 
 (defun format-lexer-error (stream pos input msg)
@@ -30,3 +31,13 @@ Lexer error:
                                  (lexer-input condition)
                                  (error-msg condition))))
   (:documentation "Condition for when we encounter invalid token."))
+
+(define-condition parser-error (error)
+  ((error-msg :initarg :error-msg
+              :initform nil
+              :reader error-msg))
+  (:report (lambda (condition stream)
+             (if (error-msg condition)
+                 (format stream "~a~%" (error-msg condition))
+                 (format stream "Expected an expression."))))
+  (:documentation "Condition for when we expect an expression."))

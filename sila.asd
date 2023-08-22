@@ -2,11 +2,13 @@
   :version "0.0.1"
   :author "Topi Kettunen <topi@topikettunen.com>"
   :license "MIT"
-  :depends-on ()
+  :depends-on ("alexandria")
   :components ((:module "src"
                 :components
                 ((:file "conditions")
                  (:file "lexer")
+                 (:file "parser")
+                 (:file "codegen")
                  (:file "sila"))))
   :description "Sila programming language"
   :in-order-to ((test-op (test-op "sila/tests"))))
@@ -18,7 +20,8 @@
                "rove")
   :components ((:module "tests"
                 :components
-                ((:file "sila")
-                 (:file "emit-asm-x86-64"))))
+                ((:file "package")
+                 (:file "compiler-tests")
+                 (:file "emit-asm-tests"))))
   :description "Test system for sila"
   :perform (test-op (op c) (symbol-call :rove :run c)))

@@ -9,12 +9,14 @@
 (in-package #:sila/lexer)
 
 (deftype kind ()
+  "Sila token kind"
   '(member
     :punct
     :num
     :eof))
 
 (defstruct token
+  "Structure for Sila tokens."
   kind
   pos
   len
@@ -22,13 +24,19 @@
   next)
 
 (defun whitespacep (c)
+  "Predicate for whitespace."
   (member c '(#\Space #\Tab #\Return #\Newline)))
 
 (defun punctuatorp (c)
-  ;; TODO(topi): Add more punctuators when needed.
-  (member c '(#\+ #\-)))
+  "Predicate for punctuators. All the punctuators are:
+
+! \" # $ % & ' ( ) * + , - . / : ; < = > ? @ [ \ ] ^ _ ` { | } ~"
+  (member c '(#\! #\" #\# #\$ #\% #\& #\' #\( #\) #\* #\+
+              #\, #\- #\. #\/ #\: #\; #\< #\= #\> #\? #\@
+              #\[ #\\ #\] #\^ #\_ #\` #\{ #\} #\~)))
 
 (defun skip-to-punctuator (input start)
+  "Skip to nearest punctuator."
   ;; TODO(topi): Improve this. Won't work when new tokens are added.
   (position-if-not #'digit-char-p input :start start))
 

@@ -1,8 +1,4 @@
-(defpackage #:sila/tests/main
-  (:use #:cl
-        #:sila
-        #:rove))
-(in-package #:sila/tests/main)
+(in-package #:sila/tests)
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :sila)' in your Lisp.
 
@@ -32,4 +28,5 @@
 #+linux
 (deftest test-compilation-and-compare-rc
   (ok (compile-program-and-compare-rc "0" 0))
-  (ok (compile-program-and-compare-rc "5 + 40 - 20" 25)))
+  (ok (compile-program-and-compare-rc "5 + 40 - 20" 25))
+  (ok (compile-program-and-compare-rc "2 / (1 + 1) * 8" 8)))
