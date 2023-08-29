@@ -77,3 +77,35 @@ main:
           (format nil "Expect to be equal: ~%~a~%=>~a"
                   `(sila::emit-asm ,(car test))
                   (cdr test))))))
+
+(deftest test-emit-asm-unary
+  (let ((emit-asm-tests '(("- -10" . "  .globl main
+main:
+  mov $10, %rax
+  neg %rax
+  neg %rax
+  ret
+")
+                          ("-10+20" . "  .globl main
+main:
+  mov $20, %rax
+  push %rax
+  mov $10, %rax
+  neg %rax
+  pop %rdi
+  add %rdi, %rax
+  ret
+")
+                          ("- - -10" . "  .globl main
+main:
+  mov $10, %rax
+  neg %rax
+  neg %rax
+  neg %rax
+  ret
+"))))
+    (dolist (test emit-asm-tests)
+      (ok (string-equal (sila::emit-asm (car test)) (cdr test))
+          (format nil "Expect to be equal: ~%~a~%=>~a"
+                  `(sila::emit-asm ,(car test))
+                  (cdr test))))))

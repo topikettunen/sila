@@ -29,4 +29,6 @@
 (deftest test-compilation-and-compare-rc
   (ok (compile-program-and-compare-rc "0" 0))
   (ok (compile-program-and-compare-rc "5 + 40 - 20" 25))
-  (ok (compile-program-and-compare-rc "2 / (1 + 1) * 8" 8)))
+  (ok (compile-program-and-compare-rc "2 / (1 + 1) * 8" 8))
+  (ok (compile-program-and-compare-rc "- -10" 10))
+  (ok (compile-program-and-compare-rc "-10+20" 10)))

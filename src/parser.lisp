@@ -7,16 +7,17 @@
                 #:token-kind
                 #:token-val
                 #:token-next)
-  (:export #:expr))
+  (:export #:expression-node))
 (in-package #:sila/parser)
 
 (deftype ast-node-kind ()
   "Sila AST node kind."
   '(member
-    :add
-    :sub
-    :mul
-    :div
+    :add     ; +
+    :sub     ; -
+    :mul     ; *
+    :div     ; /
+    :neg     ; unary -
     :number))
 
 (defstruct ast-node
@@ -33,53 +34,69 @@ TODO(topi): Probably should do some proper error handling if `val' isn't
 found."
   (cond ((eq (token-kind tok) :eof) nil)
         ((equal (token-val tok) val) tok)
-        (t (search-token val (token-next tok)))))
+        (t (skip-to-token val (token-next tok)))))
 
-(defun expr (tok)
-  "expr ::== mul ( '+' mul | '-' mul ) *"
+(defun expression-node (tok)
+  "expression-node ::== multiplicative-node ( '+' multiplicative-node
+                                            | '-' multiplicative-node ) *"
   (multiple-value-bind (node rest)
-      (mul tok)
+      (multiplicative-node tok)
     (loop
       (cond ((eq (token-val rest) #\+)
              (multiple-value-bind (node2 rest2)
-                 (mul (token-next rest))
+                 (multiplicative-node (token-next rest))
                (setf node (make-ast-node :kind :add :lhs node :rhs node2))
                (setf rest rest2)))
             ((eq (token-val rest) #\-)
              (multiple-value-bind (node2 rest2)
-                 (mul (token-next rest))
+                 (multiplicative-node (token-next rest))
                (setf node (make-ast-node :kind :sub :lhs node :rhs node2))
                (setf rest rest2)))
             (t
-             (return-from expr
+             (return-from expression-node
                (values node rest)))))))
 
-(defun mul (tok)
-  "mul ::== primary ( '*' primary | '/' primary ) *"
+(defun multiplicative-node (tok)
+  "multiplicative-node ::== unary-node ( '*' unary-node | '/' unary-node ) *"
   (multiple-value-bind (node rest)
-      (primary tok)
+      (unary-node tok)
     (loop
       (cond ((eq (token-val rest) #\*)
              (multiple-value-bind (node2 rest2)
-                 (primary (token-next rest))
+                 (unary-node (token-next rest))
                (setf node (make-ast-node :kind :mul :lhs node :rhs node2))
                (setf rest rest2)))
             ((eq (token-val rest) #\/)
              (multiple-value-bind (node2 rest2)
-                 (primary (token-next rest))
+                 (unary-node (token-next rest))
                (setf node (make-ast-node :kind :div :lhs node :rhs node2))
                (setf rest rest2)))
             (t
-             (return-from mul
+             (return-from multiplicative-node
                (values node rest)))))))
 
-(defun primary (tok)
-  "primary ::== '(' expr ')' | number"
+(defun unary-node (tok)
+  "unary-node ::== ( '+' | '-' ) unary | primary-node"
+  (cond ((eq (token-val tok) #\+)
+         (unary-node (token-next tok)))
+        ((eq (token-val tok) #\-)
+         (multiple-value-bind (node rest)
+             (unary-node (token-next tok))
+           ;; In case something like '--10' is encountered.
+           (when (eq (token-val rest) #\-)
+             (unary-node (token-next rest)))
+           (values (make-ast-node :kind :neg :lhs node)
+                   rest)))
+        (t
+         (primary-node tok))))
+
+(defun primary-node (tok)
+  "primary-node ::== '(' expression-node ')' | number"
   (cond ((eq (token-kind tok) :num)
          (values (make-ast-node :kind :number :val (token-val tok))
                  (token-next tok)))
         ((eq (token-val tok) #\()
          (multiple-value-bind (node rest)
-             (expr (token-next tok))
+             (expression-node (token-next tok))
            (values node (token-next (skip-to-token #\) rest)))))
         (t (error 'parser-error))))

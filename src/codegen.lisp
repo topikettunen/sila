@@ -1,6 +1,7 @@
 (defpackage #:sila/codegen
   (:use #:cl)
-  (:import-from #:sila/conditions)
+  (:import-from #:sila/conditions
+                #:parser-error)
   (:import-from #:sila/parser
                 #:ast-node-kind
                 #:ast-node-val
@@ -28,13 +29,17 @@
   (asm-inst (format nil "pop %~a" reg)))
 
 (defun generate-expr (node)
+  "Recursively generate the x86 assembly code."
   (let ((asm ""))
     (flet ((asm-conc (inst)
              (setf asm (concatenate 'string asm inst))))
-      (when (eq (ast-node-kind node) :number)
-        (asm-conc (asm-inst (format nil "mov $~d, %rax"
-                                    (ast-node-val node))))
-        (return-from generate-expr asm))
+      (alexandria:switch ((ast-node-kind node) :test #'eq)
+        (:number (asm-conc (asm-inst (format nil "mov $~d, %rax"
+                                             (ast-node-val node))))
+                 (return-from generate-expr asm))
+        (:neg (asm-conc (generate-expr (ast-node-lhs node)))
+              (asm-conc (asm-inst "neg %rax"))
+              (return-from generate-expr asm)))
       (asm-conc (generate-expr (ast-node-rhs node)))
       (asm-conc (asm-push))
       (asm-conc (generate-expr (ast-node-lhs node)))
