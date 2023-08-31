@@ -7,7 +7,7 @@
                 #:token-kind
                 #:token-val
                 #:token-next)
-  (:export #:expression-node))
+  (:export #:parse-expression-node))
 (in-package #:sila/parser)
 
 (deftype ast-node-kind ()
@@ -18,6 +18,12 @@
     :mul     ; *
     :div     ; /
     :neg     ; unary -
+    :equal
+    :not-equal
+    :lesser-than
+    :lesser-or-equal
+    :greater-than
+    :greater-or-equal
     :number))
 
 (defstruct ast-node
@@ -36,67 +42,126 @@ found."
         ((equal (token-val tok) val) tok)
         (t (skip-to-token val (token-next tok)))))
 
-(defun expression-node (tok)
-  "expression-node ::== multiplicative-node ( '+' multiplicative-node
-                                            | '-' multiplicative-node ) *"
+;;; TODO(topi): These parsing functions are quite similar to each other, maybe
+;;; these could be wrapped into some macro?
+
+(defun parse-expression-node (tok)
+  "expression-node ::== equality"
+  (parse-equality-node tok))
+
+(defun parse-equality-node (tok)
+  "equality-node ::== relational-node ( '==' relational-node
+                                      | '!=' relational-node ) *"
   (multiple-value-bind (node rest)
-      (multiplicative-node tok)
+      (parse-relational-node tok)
     (loop
-      (cond ((eq (token-val rest) #\+)
+      (cond ((string= (token-val rest) "==")
              (multiple-value-bind (node2 rest2)
-                 (multiplicative-node (token-next rest))
+                 (parse-relational-node (token-next rest))
+               (setf node (make-ast-node :kind :equal :lhs node :rhs node2))
+               (setf rest rest2)))
+            ((string= (token-val rest) "!=")
+             (multiple-value-bind (node2 rest2)
+                 (parse-relational-node (token-next rest))
+               (setf node (make-ast-node :kind :not-equal :lhs node :rhs node2))
+               (setf rest rest2)))
+            (t
+             (return-from parse-equality-node
+               (values node rest)))))))
+
+(defun parse-relational-node (tok)
+  "relational-node ::== add ( '<'  add
+                            | '<=' add
+                            | '>'  add
+                            | '>=' add ) *"
+  (multiple-value-bind (node rest)
+      (parse-add-node tok)
+    (loop
+      (cond ((string= (token-val rest) "<")
+             (multiple-value-bind (node2 rest2)
+                 (parse-add-node (token-next rest))
+               (setf node (make-ast-node :kind :lesser-than :lhs node :rhs node2))
+               (setf rest rest2)))
+            ((string= (token-val rest) "<=")
+             (multiple-value-bind (node2 rest2)
+                 (parse-add-node (token-next rest))
+               (setf node (make-ast-node :kind :lesser-or-equal :lhs node :rhs node2))
+               (setf rest rest2)))
+            ((string= (token-val rest) ">")
+             (multiple-value-bind (node2 rest2)
+                 (parse-add-node (token-next rest))
+               (setf node (make-ast-node :kind :greater-than :lhs node :rhs node2))
+               (setf rest rest2)))
+            ((string= (token-val rest) ">=")
+             (multiple-value-bind (node2 rest2)
+                 (parse-add-node (token-next rest))
+               (setf node (make-ast-node :kind :greater-or-equal :lhs node :rhs node2))
+               (setf rest rest2)))
+            (t
+             (return-from parse-relational-node
+               (values node rest)))))))
+
+(defun parse-add-node (tok)
+  "add-node ::== multiplicative-node ( '+' multiplicative-node
+                                     | '-' multiplicative-node ) *"
+  (multiple-value-bind (node rest)
+      (parse-multiplicative-node tok)
+    (loop
+      (cond ((string= (token-val rest) "+")
+             (multiple-value-bind (node2 rest2)
+                 (parse-multiplicative-node (token-next rest))
                (setf node (make-ast-node :kind :add :lhs node :rhs node2))
                (setf rest rest2)))
-            ((eq (token-val rest) #\-)
+            ((string= (token-val rest) "-")
              (multiple-value-bind (node2 rest2)
-                 (multiplicative-node (token-next rest))
+                 (parse-multiplicative-node (token-next rest))
                (setf node (make-ast-node :kind :sub :lhs node :rhs node2))
                (setf rest rest2)))
             (t
-             (return-from expression-node
+             (return-from parse-add-node
                (values node rest)))))))
 
-(defun multiplicative-node (tok)
+(defun parse-multiplicative-node (tok)
   "multiplicative-node ::== unary-node ( '*' unary-node | '/' unary-node ) *"
   (multiple-value-bind (node rest)
-      (unary-node tok)
+      (parse-unary-node tok)
     (loop
-      (cond ((eq (token-val rest) #\*)
+      (cond ((string= (token-val rest) "*")
              (multiple-value-bind (node2 rest2)
-                 (unary-node (token-next rest))
+                 (parse-unary-node (token-next rest))
                (setf node (make-ast-node :kind :mul :lhs node :rhs node2))
                (setf rest rest2)))
-            ((eq (token-val rest) #\/)
+            ((string= (token-val rest) "/")
              (multiple-value-bind (node2 rest2)
-                 (unary-node (token-next rest))
+                 (parse-unary-node (token-next rest))
                (setf node (make-ast-node :kind :div :lhs node :rhs node2))
                (setf rest rest2)))
             (t
-             (return-from multiplicative-node
+             (return-from parse-multiplicative-node
                (values node rest)))))))
 
-(defun unary-node (tok)
+(defun parse-unary-node (tok)
   "unary-node ::== ( '+' | '-' ) unary | primary-node"
-  (cond ((eq (token-val tok) #\+)
-         (unary-node (token-next tok)))
-        ((eq (token-val tok) #\-)
+  (cond ((string= (token-val tok) "+")
+         (parse-unary-node (token-next tok)))
+        ((string= (token-val tok) "-")
          (multiple-value-bind (node rest)
-             (unary-node (token-next tok))
+             (parse-unary-node (token-next tok))
            ;; In case something like '--10' is encountered.
            (when (eq (token-val rest) #\-)
-             (unary-node (token-next rest)))
+             (parse-unary-node (token-next rest)))
            (values (make-ast-node :kind :neg :lhs node)
                    rest)))
         (t
-         (primary-node tok))))
+         (parse-primary-node tok))))
 
-(defun primary-node (tok)
+(defun parse-primary-node (tok)
   "primary-node ::== '(' expression-node ')' | number"
   (cond ((eq (token-kind tok) :num)
          (values (make-ast-node :kind :number :val (token-val tok))
                  (token-next tok)))
-        ((eq (token-val tok) #\()
+        ((string= (token-val tok) "(")
          (multiple-value-bind (node rest)
-             (expression-node (token-next tok))
-           (values node (token-next (skip-to-token #\) rest)))))
+             (parse-expression-node (token-next tok))
+           (values node (token-next (skip-to-token ")" rest)))))
         (t (error 'parser-error))))

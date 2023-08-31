@@ -30,25 +30,62 @@
 
 (defun generate-expr (node)
   "Recursively generate the x86 assembly code."
-  (let ((asm ""))
+  (let ((asm "")
+        (kind (ast-node-kind node)))
+    ;; TODO(topi): Don't really like this `asm-conc' shenanigans. Refactor it.
     (flet ((asm-conc (inst)
              (setf asm (concatenate 'string asm inst))))
-      (alexandria:switch ((ast-node-kind node) :test #'eq)
-        (:number (asm-conc (asm-inst (format nil "mov $~d, %rax"
-                                             (ast-node-val node))))
-                 (return-from generate-expr asm))
-        (:neg (asm-conc (generate-expr (ast-node-lhs node)))
-              (asm-conc (asm-inst "neg %rax"))
-              (return-from generate-expr asm)))
+      (cond ((eq kind :number)
+             (asm-conc (asm-inst (format nil "mov $~d, %rax"
+                                         (ast-node-val node))))
+             (return-from generate-expr asm))
+            ((eq kind :neg)
+             (asm-conc (generate-expr (ast-node-lhs node)))
+             (asm-conc (asm-inst "neg %rax"))
+             (return-from generate-expr asm)))
+
       (asm-conc (generate-expr (ast-node-rhs node)))
       (asm-conc (asm-push))
       (asm-conc (generate-expr (ast-node-lhs node)))
       (asm-conc (asm-pop "rdi"))
-      (alexandria:switch ((ast-node-kind node) :test #'eq)
-        (:add (asm-conc (asm-inst "add %rdi, %rax")))
-        (:sub (asm-conc (asm-inst "sub %rdi, %rax")))
-        (:mul (asm-conc (asm-inst "imul %rdi, %rax")))
-        (:div (asm-conc (asm-inst "cqo"))
-              (asm-conc (asm-inst "idiv %rdi, %rax")))
-        (t (error 'parser-error))))
+
+      (cond ((eq kind :add)
+             (asm-conc (asm-inst "add %rdi, %rax")))
+
+            ((eq kind :sub)
+             (asm-conc (asm-inst "sub %rdi, %rax")))
+
+            ((eq kind :mul)
+             (asm-conc (asm-inst "imul %rdi, %rax")))
+
+            ((eq kind :div)
+             (asm-conc (asm-inst "cqo"))
+             (asm-conc (asm-inst "idiv %rdi, %rax")))
+
+            ((or (eq kind :equal)
+                 (eq kind :not-equal)
+                 (eq kind :lesser-than)
+                 (eq kind :lesser-or-equal)
+                 (eq kind :greater-than)
+                 (eq kind :greater-or-equal))
+             (asm-conc (asm-inst "cmp %rdi, %rax"))
+             (cond ((eq kind :equal)
+                    (asm-conc (asm-inst "sete %al")))
+
+                   ((eq kind :not-equal)
+                    (asm-conc (asm-inst "setne %al")))
+
+                   ((eq kind :lesser-than)
+                    (asm-conc (asm-inst "setl %al")))
+
+                   ((eq kind :lesser-or-equal)
+                    (asm-conc (asm-inst "setle %al")))
+
+                   ((eq kind :greater-than)
+                    (asm-conc (asm-inst "setg %al")))
+
+                   ((eq kind :greater-or-equal)
+                    (asm-conc (asm-inst "setge %al"))))
+             (asm-conc (asm-inst "movzb %al, %rax")))
+            (t (error 'parser-error))))
     asm))

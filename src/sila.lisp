@@ -9,7 +9,7 @@
                 #:token-val
                 #:token-next)
   (:import-from #:sila/parser
-                #:expression-node)
+                #:parse-expression-node)
   (:import-from #:sila/codegen
                 #:asm-directive
                 #:asm-label
@@ -25,7 +25,7 @@ only Linux is tested."
     (flet ((asm-conc (inst)
              (setf asm (concatenate 'string asm inst))))
       (multiple-value-bind (node rest)
-          (expression-node (tokenize src))
+          (parse-expression-node (tokenize src))
         (unless (eq (token-kind rest) :eof)
           (error 'parser-error :error-msg "Extra tokens"))
         (asm-conc (asm-directive ".globl main"))

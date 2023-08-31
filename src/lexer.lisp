@@ -27,6 +27,9 @@
   "Predicate for whitespace."
   (member c '(#\Space #\Tab #\Return #\Newline)))
 
+(defun trim-whitespace (str)
+  (string-trim '(#\Space #\Tab #\Return #\Newline) str))
+
 (defun punctuatorp (c)
   "Predicate for punctuators. All the punctuators are:
 
@@ -37,8 +40,20 @@
 
 (defun skip-to-punctuator (input start)
   "Skip to nearest punctuator."
-  ;; TODO(topi): Improve this. Won't work when new tokens are added.
-  (position-if-not #'digit-char-p input :start start))
+  (position-if #'punctuatorp input :start start))
+
+(defun punct-length (input pos)
+  "Read punctuator and return its length. If token isn't a punctuator, return 0."
+  (let* ((end (if (= pos (1- (length input)))
+                  (length input)
+                  (+ pos 2)))
+         (punct (subseq input pos end)))
+    (cond ((or (string= "==" punct)
+               (string= "!=" punct)
+               (string= "<=" punct)
+               (string= ">=" punct)) 2)
+          ((punctuatorp (char input pos)) 1)
+          (t 0))))
 
 (defun tokenize (src)
   "Generate tokens from the given source code."
@@ -52,34 +67,30 @@
                        (incf src-pos))
                       (;; Numeric literal
                        (digit-char-p (char src src-pos))
-                       (setf (token-next cur)
-                             (make-token :kind :num
-                                         :val (parse-integer src
-                                                             :start src-pos
-                                                             :junk-allowed t)
-                                         :pos src-pos))
-                       (setf (token-len (token-next cur))
-                             (if punct-pos
-                                 (- punct-pos src-pos)
-                                 ;; No more punctuators.
-                                 (- (length src) src-pos)))
-                       (setf cur (token-next cur))
-                       (if punct-pos
-                           (setf src-pos punct-pos)
-                           ;; No more punctuators, move `src-pos` to the end.
-                           (setf src-pos (length src))))
-                      (;; Punctuator: + | -
+                       (let* ((token-len (if punct-pos
+                                             (- punct-pos src-pos)
+                                             ;; No more punctuators.
+                                             (- (length src) src-pos)))
+                              (token-val (trim-whitespace (subseq src src-pos (+ src-pos token-len)))))
+                         (setf (token-next cur)
+                               (make-token :kind :num
+                                           :val token-val
+                                           :len (length token-val)
+                                           :pos src-pos))
+                         (setf cur (token-next cur))
+                         (if punct-pos
+                             (setf src-pos punct-pos)
+                             (setf src-pos (length src)))))
+                      (;; Punctuator
                        (punctuatorp (char src src-pos))
-                       (setf (token-next cur)
-                             (make-token :kind :punct
-                                         :val (char src src-pos)
-                                         :pos src-pos
-                                         ;; TODO(topi): Currently I only have
-                                         ;; 1 char puncts, change when more is
-                                         ;; needed.
-                                         :len 1))
-                       (setf cur (token-next cur))
-                       (incf src-pos))
+                       (let ((punct-len (punct-length src src-pos)))
+                         (setf (token-next cur)
+                               (make-token :kind :punct
+                                           :val (subseq src src-pos (+ src-pos punct-len))
+                                           :pos src-pos
+                                           :len punct-len))
+                         (setf cur (token-next cur))
+                         (setf src-pos (+ src-pos punct-len))))
                       (t
                        (error 'lexer-error
                               :lexer-input src
