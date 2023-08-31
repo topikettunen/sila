@@ -1,13 +1,10 @@
 (defpackage #:sila
   (:use #:cl)
   (:import-from #:sila/conditions
-                #:lexer-error
                 #:parser-error)
   (:import-from #:sila/lexer
                 #:tokenize
-                #:token-kind
-                #:token-val
-                #:token-next)
+                #:token-kind)
   (:import-from #:sila/parser
                 #:parse-expression-node)
   (:import-from #:sila/codegen

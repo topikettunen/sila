@@ -71,10 +71,10 @@
                                              (- punct-pos src-pos)
                                              ;; No more punctuators.
                                              (- (length src) src-pos)))
-                              (token-val (trim-whitespace (subseq src src-pos (+ src-pos token-len)))))
+                              (token-val (subseq src src-pos (+ src-pos token-len))))
                          (setf (token-next cur)
                                (make-token :kind :num
-                                           :val token-val
+                                           :val (trim-whitespace token-val)
                                            :len (length token-val)
                                            :pos src-pos))
                          (setf cur (token-next cur))
