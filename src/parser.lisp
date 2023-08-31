@@ -42,103 +42,64 @@ found."
         ((equal (token-val tok) val) tok)
         (t (skip-to-token val (token-next tok)))))
 
-;;; TODO(topi): These parsing functions are quite similar to each other, maybe
-;;; these could be wrapped into some macro?
+(defmacro define-parser (name &key descent-parser
+                                   comparison-symbols
+                                   bnf)
+  "Macro for generating new parser rules."
+  (let* ((parser-name (intern (format nil "PARSE-~a-NODE" name)))
+         (descent-parser (intern (format nil "PARSE-~a-NODE"  descent-parser))))
+    `(defun ,parser-name (tok)
+       ,bnf
+       (multiple-value-bind (node rest)
+           (,descent-parser tok)
+         (loop
+           (cond
+             ,@(loop :for symbol in comparison-symbols
+                     :collect `((string= (token-val rest) ,(car symbol))
+                                (multiple-value-bind (node2 rest2)
+                                    (,descent-parser (token-next rest))
+                                  (setf node (make-ast-node :kind ,(cdr symbol)
+                                                            :lhs node
+                                                            :rhs node2))
+                                  (setf rest rest2))))
+             (t
+              (return-from ,parser-name
+                (values node rest)))))))))
 
+;;; Top-most parser function is just defined by calling equality node, so for
+;;; now, it doesn't require using macro for defining the rule.
 (defun parse-expression-node (tok)
   "expression-node ::== equality"
   (parse-equality-node tok))
 
-(defun parse-equality-node (tok)
-  "equality-node ::== relational-node ( '==' relational-node
-                                      | '!=' relational-node ) *"
-  (multiple-value-bind (node rest)
-      (parse-relational-node tok)
-    (loop
-      (cond ((string= (token-val rest) "==")
-             (multiple-value-bind (node2 rest2)
-                 (parse-relational-node (token-next rest))
-               (setf node (make-ast-node :kind :equal :lhs node :rhs node2))
-               (setf rest rest2)))
-            ((string= (token-val rest) "!=")
-             (multiple-value-bind (node2 rest2)
-                 (parse-relational-node (token-next rest))
-               (setf node (make-ast-node :kind :not-equal :lhs node :rhs node2))
-               (setf rest rest2)))
-            (t
-             (return-from parse-equality-node
-               (values node rest)))))))
+(define-parser equality
+  :descent-parser relational
+  :comparison-symbols (("==" . :equal)
+                       ("!=" . :not-equal))
+  :bnf "equality-node ::== relational-node ( '==' relational-node | '!=' relational-node ) *")
 
-(defun parse-relational-node (tok)
-  "relational-node ::== add ( '<'  add
-                            | '<=' add
-                            | '>'  add
-                            | '>=' add ) *"
-  (multiple-value-bind (node rest)
-      (parse-add-node tok)
-    (loop
-      (cond ((string= (token-val rest) "<")
-             (multiple-value-bind (node2 rest2)
-                 (parse-add-node (token-next rest))
-               (setf node (make-ast-node :kind :lesser-than :lhs node :rhs node2))
-               (setf rest rest2)))
-            ((string= (token-val rest) "<=")
-             (multiple-value-bind (node2 rest2)
-                 (parse-add-node (token-next rest))
-               (setf node (make-ast-node :kind :lesser-or-equal :lhs node :rhs node2))
-               (setf rest rest2)))
-            ((string= (token-val rest) ">")
-             (multiple-value-bind (node2 rest2)
-                 (parse-add-node (token-next rest))
-               (setf node (make-ast-node :kind :greater-than :lhs node :rhs node2))
-               (setf rest rest2)))
-            ((string= (token-val rest) ">=")
-             (multiple-value-bind (node2 rest2)
-                 (parse-add-node (token-next rest))
-               (setf node (make-ast-node :kind :greater-or-equal :lhs node :rhs node2))
-               (setf rest rest2)))
-            (t
-             (return-from parse-relational-node
-               (values node rest)))))))
+(define-parser relational
+  :descent-parser add
+  :comparison-symbols (("<" . :lesser-than)
+                       ("<=" . :lesser-or-equal)
+                       (">" . :greater-than)
+                       (">=" . :greater-or-equal))
+  :bnf "relational-node ::== add ( '<'  add | '<=' add | '>'  add | '>=' add ) *")
 
-(defun parse-add-node (tok)
-  "add-node ::== multiplicative-node ( '+' multiplicative-node
-                                     | '-' multiplicative-node ) *"
-  (multiple-value-bind (node rest)
-      (parse-multiplicative-node tok)
-    (loop
-      (cond ((string= (token-val rest) "+")
-             (multiple-value-bind (node2 rest2)
-                 (parse-multiplicative-node (token-next rest))
-               (setf node (make-ast-node :kind :add :lhs node :rhs node2))
-               (setf rest rest2)))
-            ((string= (token-val rest) "-")
-             (multiple-value-bind (node2 rest2)
-                 (parse-multiplicative-node (token-next rest))
-               (setf node (make-ast-node :kind :sub :lhs node :rhs node2))
-               (setf rest rest2)))
-            (t
-             (return-from parse-add-node
-               (values node rest)))))))
+(define-parser add
+  :descent-parser multiplicative
+  :comparison-symbols (("+" . :add)
+                       ("-" . :sub))
+  :bnf "add-node ::== multiplicative-node ( '+' multiplicative-node | '-' multiplicative-node ) *")
 
-(defun parse-multiplicative-node (tok)
-  "multiplicative-node ::== unary-node ( '*' unary-node | '/' unary-node ) *"
-  (multiple-value-bind (node rest)
-      (parse-unary-node tok)
-    (loop
-      (cond ((string= (token-val rest) "*")
-             (multiple-value-bind (node2 rest2)
-                 (parse-unary-node (token-next rest))
-               (setf node (make-ast-node :kind :mul :lhs node :rhs node2))
-               (setf rest rest2)))
-            ((string= (token-val rest) "/")
-             (multiple-value-bind (node2 rest2)
-                 (parse-unary-node (token-next rest))
-               (setf node (make-ast-node :kind :div :lhs node :rhs node2))
-               (setf rest rest2)))
-            (t
-             (return-from parse-multiplicative-node
-               (values node rest)))))))
+(define-parser multiplicative
+  :descent-parser unary
+  :comparison-symbols (("*" . :mul)
+                       ("/" . :div))
+  :bnf "multiplicative-node ::== unary-node ( '*' unary-node | '/' unary-node ) *")
+
+;;; Since parsing unary operators and primary nodes works slightly
+;;; differently, I'll just write these functions by hand.
 
 (defun parse-unary-node (tok)
   "unary-node ::== ( '+' | '-' ) unary | primary-node"
