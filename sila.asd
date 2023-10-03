@@ -22,6 +22,6 @@
                 :components
                 ((:file "package")
                  (:file "compiler-tests")
-                 (:file "emit-asm-tests"))))
+                 (:file "emit-x86-64-tests"))))
   :description "Test system for sila"
   :perform (test-op (op c) (symbol-call :rove :run c)))

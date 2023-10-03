@@ -2,7 +2,7 @@
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :sila)' in your Lisp.
 
-(deftest test-emit-asm-integer
+(deftest test-emit-x86-64-integer
   (let ((emit-asm-tests '(("0" . "  .globl main
 main:
   mov $0, %rax
@@ -19,7 +19,7 @@ main:
                   `(sila::emit-asm ,(car test))
                   (cdr test))))))
 
-(deftest test-emit-asm-add-sub
+(deftest test-emit-x86-64-add-sub
   (let ((emit-asm-tests '(("5+20-4" . "  .globl main
 main:
   mov $4, %rax
@@ -52,7 +52,7 @@ main:
                   `(sila::emit-asm ,(car test))
                   (cdr test))))))
 
-(deftest test-emit-asm-div-mul-parens
+(deftest test-emit-x86-64-div-mul-parens
   (let ((emit-asm-tests '(("2 / (1 + 1) * 8" . "  .globl main
 main:
   mov $8, %rax
@@ -77,7 +77,7 @@ main:
                   `(sila::emit-asm ,(car test))
                   (cdr test))))))
 
-(deftest test-emit-asm-unary
+(deftest test-emit-x86-64-unary
   (let ((emit-asm-tests '(("- -10" . "  .globl main
 main:
   mov $10, %rax
@@ -109,7 +109,7 @@ main:
                   `(sila::emit-asm ,(car test))
                   (cdr test))))))
 
-(deftest test-emit-asm-comparisons
+(deftest test-emit-x86-64-comparisons
   (let ((emit-asm-tests '(("1==1" . "  .globl main
 main:
   mov $1, %rax

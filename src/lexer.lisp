@@ -31,9 +31,7 @@
   (string-trim '(#\Space #\Tab #\Return #\Newline) str))
 
 (defun punctuatorp (c)
-  "Predicate for punctuators. All the punctuators are:
-
-! \" # $ % & ' ( ) * + , - . / : ; < = > ? @ [ \ ] ^ _ ` { | } ~"
+  "Predicate for punctuators."
   (member c '(#\! #\" #\# #\$ #\% #\& #\' #\( #\) #\* #\+
               #\, #\- #\. #\/ #\: #\; #\< #\= #\> #\? #\@
               #\[ #\\ #\] #\^ #\_ #\` #\{ #\} #\~)))
