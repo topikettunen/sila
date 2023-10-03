@@ -19,6 +19,7 @@
   "Emit assembly code from given source code. Currently emits only x86-64 and
 only Linux is tested."
   (let ((asm ""))
+    ;; TODO(topi): Don't really like this `asm-conc' shenanigans. Refactor it.
     (flet ((asm-conc (inst)
              (setf asm (concatenate 'string asm inst))))
       (multiple-value-bind (node rest)
