@@ -46,18 +46,18 @@ found."
                                    comparison-symbols
                                    bnf)
   "Macro for generating new parser rules."
-  (let* ((parser-name (intern (format nil "PARSE-~a-NODE" name)))
-         (descent-parser (intern (format nil "PARSE-~a-NODE"  descent-parser))))
+  (let ((parser-name (intern (format nil "PARSE-~a-NODE" name)))
+        (descent-parser-name (intern (format nil "PARSE-~a-NODE" descent-parser))))
     `(defun ,parser-name (tok)
        ,bnf
        (multiple-value-bind (node rest)
-           (,descent-parser tok)
+           (,descent-parser-name tok)
          (loop
            (cond
              ,@(loop :for symbol in comparison-symbols
                      :collect `((string= (token-val rest) ,(car symbol))
                                 (multiple-value-bind (node2 rest2)
-                                    (,descent-parser (token-next rest))
+                                    (,descent-parser-name (token-next rest))
                                   (setf node (make-ast-node :kind ,(cdr symbol)
                                                             :lhs node
                                                             :rhs node2))
