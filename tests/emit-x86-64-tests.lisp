@@ -14,9 +14,9 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test)) (cdr test))
+      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test))
+                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-add-sub
@@ -47,9 +47,9 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test)) (cdr test))
+      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test))
+                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-div-mul-parens
@@ -72,9 +72,9 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test)) (cdr test))
+      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test))
+                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-unary
@@ -104,9 +104,9 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test)) (cdr test))
+      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test))
+                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-comparisons
@@ -166,7 +166,7 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test)) (cdr test))
+      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test))
+                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))

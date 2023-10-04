@@ -16,5 +16,5 @@ exec ros -Q -- $0 "$@"
   (unless (= (length argv) 1)
     (format *error-output* "Invalid number of arguments, expected 1.~%")
     (uiop:quit 1))
-  (format *standard-output* (sila:emit-asm (first argv)))
+  (sila:emit-asm (first argv) :print-to-stdout t)
   (uiop:quit 0))

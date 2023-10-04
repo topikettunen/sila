@@ -1,5 +1,7 @@
 (defpackage #:sila/lexer
   (:use #:cl)
+  (:import-from #:alexandria
+                #:appendf)
   (:import-from #:sila/conditions
                 #:lexer-error)
   (:export #:tokenize
@@ -69,7 +71,7 @@
                                              ;; No more punctuators.
                                              (- (length src) src-pos)))
                               (token-val (subseq src src-pos (+ src-pos token-len))))
-                         (alexandria:appendf tokens (list (make-token :kind :num
+                         (appendf tokens (list (make-token :kind :num
                                                                       :val (trim-whitespace token-val)
                                                                       :len (length token-val)
                                                                       :pos src-pos)))
@@ -79,7 +81,7 @@
                       (;; Punctuator
                        (punctuatorp (char src src-pos))
                        (let ((punct-len (punct-length src src-pos)))
-                         (alexandria:appendf tokens (list (make-token :kind :punct
+                         (appendf tokens (list (make-token :kind :punct
                                                                       :val (subseq src src-pos (+ src-pos punct-len))
                                                                       :pos src-pos
                                                                       :len punct-len)))
@@ -90,5 +92,5 @@
                               :error-msg "Invalid token."
                               :token-position src-pos)))))
     ;; No more tokens.
-    (alexandria:appendf tokens (list (make-token :kind :eof :pos src-pos)))
+    (appendf tokens (list (make-token :kind :eof :pos src-pos)))
     tokens))
