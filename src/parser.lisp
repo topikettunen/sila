@@ -5,8 +5,7 @@
   (:import-from #:sila/lexer
                 #:tokenize
                 #:token-kind
-                #:token-val
-                #:token-next)
+                #:token-val)
   (:export #:parse-expression-node))
 (in-package #:sila/parser)
 
@@ -38,9 +37,9 @@
 
 TODO(topi): Probably should do some proper error handling if `val' isn't
 found."
-  (cond ((eq (token-kind tok) :eof) nil)
-        ((equal (token-val tok) val) tok)
-        (t (skip-to-token val (token-next tok)))))
+  (cond ((eq (token-kind (first tok)) :eof) nil)
+        ((equal (token-val (first tok)) val) tok)
+        (t (skip-to-token val (rest tok)))))
 
 (defmacro define-parser (name &key descent-parser
                                    comparison-symbols
@@ -50,21 +49,21 @@ found."
         (descent-parser-name (intern (format nil "PARSE-~a-NODE" descent-parser))))
     `(defun ,parser-name (tok)
        ,bnf
-       (multiple-value-bind (node rest)
+       (multiple-value-bind (node tokens)
            (,descent-parser-name tok)
          (loop
            (cond
-             ,@(loop :for symbol in comparison-symbols
-                     :collect `((string= (token-val rest) ,(car symbol))
-                                (multiple-value-bind (node2 rest2)
-                                    (,descent-parser-name (token-next rest))
+             ,@(loop :for symbol :in comparison-symbols
+                     :collect `((string= (token-val (first tokens)) ,(car symbol))
+                                (multiple-value-bind (node2 tokens2)
+                                    (,descent-parser-name (rest tokens))
                                   (setf node (make-ast-node :kind ,(cdr symbol)
                                                             :lhs node
                                                             :rhs node2))
-                                  (setf rest rest2))))
+                                  (setf tokens tokens2))))
              (t
               (return-from ,parser-name
-                (values node rest)))))))))
+                (values node tokens)))))))))
 
 ;;; Top-most parser function is just defined by calling equality node, so for
 ;;; now, it doesn't require using macro for defining the rule.
@@ -103,26 +102,26 @@ found."
 
 (defun parse-unary-node (tok)
   "unary-node ::== ( '+' | '-' ) unary | primary-node"
-  (cond ((string= (token-val tok) "+")
-         (parse-unary-node (token-next tok)))
-        ((string= (token-val tok) "-")
-         (multiple-value-bind (node rest)
-             (parse-unary-node (token-next tok))
+  (cond ((string= (token-val (first tok)) "+")
+         (parse-unary-node (rest tok)))
+        ((string= (token-val (first tok)) "-")
+         (multiple-value-bind (node tokens)
+             (parse-unary-node (rest tok))
            ;; In case something like '--10' is encountered.
-           (when (eq (token-val rest) #\-)
-             (parse-unary-node (token-next rest)))
+           (when (eq (token-val (first tokens)) #\-)
+             (parse-unary-node (rest tokens)))
            (values (make-ast-node :kind :neg :lhs node)
-                   rest)))
+                   tokens)))
         (t
          (parse-primary-node tok))))
 
 (defun parse-primary-node (tok)
   "primary-node ::== '(' expression-node ')' | number"
-  (cond ((eq (token-kind tok) :num)
-         (values (make-ast-node :kind :number :val (token-val tok))
-                 (token-next tok)))
-        ((string= (token-val tok) "(")
-         (multiple-value-bind (node rest)
-             (parse-expression-node (token-next tok))
-           (values node (token-next (skip-to-token ")" rest)))))
+  (cond ((eq (token-kind (first tok)) :num)
+         (values (make-ast-node :kind :number :val (token-val (first tok)))
+                 (rest tok)))
+        ((string= (token-val (first tok)) "(")
+         (multiple-value-bind (node tokens)
+             (parse-expression-node (rest tok))
+           (values node (rest (skip-to-token ")" tokens)))))
         (t (error 'parser-error))))

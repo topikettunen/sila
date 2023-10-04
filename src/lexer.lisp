@@ -20,8 +20,7 @@
   kind
   pos
   len
-  val
-  next)
+  val)
 
 (defun whitespacep (c)
   "Predicate for whitespace."
@@ -56,9 +55,8 @@
 
 (defun tokenize (src)
   "Generate tokens from the given source code."
-  (let* ((head (make-token))
-         (cur head)
-         (src-pos 0))
+  (let ((tokens '())
+        (src-pos 0))
     (loop :while (< src-pos (length src))
           :do (let ((punct-pos (skip-to-punctuator src src-pos)))
                 (cond (;; Whitespace
@@ -71,24 +69,20 @@
                                              ;; No more punctuators.
                                              (- (length src) src-pos)))
                               (token-val (subseq src src-pos (+ src-pos token-len))))
-                         (setf (token-next cur)
-                               (make-token :kind :num
-                                           :val (trim-whitespace token-val)
-                                           :len (length token-val)
-                                           :pos src-pos))
-                         (setf cur (token-next cur))
+                         (alexandria:appendf tokens (list (make-token :kind :num
+                                                                      :val (trim-whitespace token-val)
+                                                                      :len (length token-val)
+                                                                      :pos src-pos)))
                          (if punct-pos
                              (setf src-pos punct-pos)
                              (setf src-pos (length src)))))
                       (;; Punctuator
                        (punctuatorp (char src src-pos))
                        (let ((punct-len (punct-length src src-pos)))
-                         (setf (token-next cur)
-                               (make-token :kind :punct
-                                           :val (subseq src src-pos (+ src-pos punct-len))
-                                           :pos src-pos
-                                           :len punct-len))
-                         (setf cur (token-next cur))
+                         (alexandria:appendf tokens (list (make-token :kind :punct
+                                                                      :val (subseq src src-pos (+ src-pos punct-len))
+                                                                      :pos src-pos
+                                                                      :len punct-len)))
                          (setf src-pos (+ src-pos punct-len))))
                       (t
                        (error 'lexer-error
@@ -96,7 +90,5 @@
                               :error-msg "Invalid token."
                               :token-position src-pos)))))
     ;; No more tokens.
-    (setf (token-next cur) (make-token :kind :eof
-                                       :pos src-pos))
-    (setf cur (token-next cur))
-    (token-next head)))
+    (alexandria:appendf tokens (list (make-token :kind :eof :pos src-pos)))
+    tokens))
