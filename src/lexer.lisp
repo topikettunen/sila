@@ -49,7 +49,8 @@
     (cond ((or (string= "==" punct)
                (string= "!=" punct)
                (string= "<=" punct)
-               (string= ">=" punct)) 2)
+               (string= ">=" punct))
+           2)
           ((punctuatorp (char input pos)) 1)
           (t 0))))
 
