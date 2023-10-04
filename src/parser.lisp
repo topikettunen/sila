@@ -12,11 +12,11 @@
 (deftype ast-node-kind ()
   "Sila AST node kind."
   '(member
-    :add     ; +
-    :sub     ; -
-    :mul     ; *
-    :div     ; /
-    :neg     ; unary -
+    :add
+    :sub
+    :mul
+    :div
+    :neg
     :equal
     :not-equal
     :lesser-than

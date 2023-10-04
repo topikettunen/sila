@@ -32,25 +32,19 @@
            (appendf insts (generate-expr (ast-node-lhs node)))
            (appendf insts (asm-inst "neg %rax"))
            (return-from generate-expr insts)))
-
     (appendf insts (generate-expr (ast-node-rhs node)))
     (appendf insts (asm-push))
     (appendf insts (generate-expr (ast-node-lhs node)))
     (appendf insts (asm-pop "rdi"))
-
     (cond ((eq kind :add)
            (appendf insts (asm-inst "add %rdi, %rax")))
-
           ((eq kind :sub)
            (appendf insts (asm-inst "sub %rdi, %rax")))
-
           ((eq kind :mul)
            (appendf insts (asm-inst "imul %rdi, %rax")))
-
           ((eq kind :div)
            (appendf insts (asm-inst "cqo"))
            (appendf insts (asm-inst "idiv %rdi, %rax")))
-
           ((or (eq kind :equal)
                (eq kind :not-equal)
                (eq kind :lesser-than)
@@ -60,19 +54,14 @@
            (appendf insts (asm-inst "cmp %rdi, %rax"))
            (cond ((eq kind :equal)
                   (appendf insts (asm-inst "sete %al")))
-
                  ((eq kind :not-equal)
                   (appendf insts (asm-inst "setne %al")))
-
                  ((eq kind :lesser-than)
                   (appendf insts (asm-inst "setl %al")))
-
                  ((eq kind :lesser-or-equal)
                   (appendf insts (asm-inst "setle %al")))
-
                  ((eq kind :greater-than)
                   (appendf insts (asm-inst "setg %al")))
-
                  ((eq kind :greater-or-equal)
                   (appendf insts (asm-inst "setge %al"))))
            (appendf insts (asm-inst "movzb %al, %rax")))

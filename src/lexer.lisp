@@ -52,7 +52,8 @@
                (string= "<=" punct)
                (string= ">=" punct))
            2)
-          ((punctuatorp (char input pos)) 1)
+          ((punctuatorp (char input pos))
+           1)
           (t 0))))
 
 (defun tokenize (src)
@@ -61,30 +62,27 @@
         (src-pos 0))
     (loop :while (< src-pos (length src))
           :do (let ((punct-pos (skip-to-punctuator src src-pos)))
-                (cond (;; Whitespace
-                       (whitespacep (char src src-pos))
+                (cond ((whitespacep (char src src-pos))
                        (incf src-pos))
-                      (;; Numeric literal
-                       (digit-char-p (char src src-pos))
+                      ((digit-char-p (char src src-pos))
                        (let* ((token-len (if punct-pos
                                              (- punct-pos src-pos)
                                              ;; No more punctuators.
                                              (- (length src) src-pos)))
                               (token-val (subseq src src-pos (+ src-pos token-len))))
                          (appendf tokens (list (make-token :kind :num
-                                                                      :val (trim-whitespace token-val)
-                                                                      :len (length token-val)
-                                                                      :pos src-pos)))
+                                                           :val (trim-whitespace token-val)
+                                                           :len (length token-val)
+                                                           :pos src-pos)))
                          (if punct-pos
                              (setf src-pos punct-pos)
                              (setf src-pos (length src)))))
-                      (;; Punctuator
-                       (punctuatorp (char src src-pos))
+                      ((punctuatorp (char src src-pos))
                        (let ((punct-len (punct-length src src-pos)))
                          (appendf tokens (list (make-token :kind :punct
-                                                                      :val (subseq src src-pos (+ src-pos punct-len))
-                                                                      :pos src-pos
-                                                                      :len punct-len)))
+                                                           :val (subseq src src-pos (+ src-pos punct-len))
+                                                           :pos src-pos
+                                                           :len punct-len)))
                          (setf src-pos (+ src-pos punct-len))))
                       (t
                        (error 'lexer-error
