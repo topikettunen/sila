@@ -1,9 +1,10 @@
 (defpackage #:sila/parser
   (:use #:cl)
+  (:import-from #:alexandria
+                #:appendf)
   (:import-from #:sila/conditions
                 #:parser-error)
   (:import-from #:sila/lexer
-                #:tokenize
                 #:token-kind
                 #:token-val)
   (:export #:parse-expression-node))
@@ -23,6 +24,7 @@
     :lesser-or-equal
     :greater-than
     :greater-or-equal
+    :expression-statement
     :number))
 
 (defstruct ast-node
@@ -65,8 +67,21 @@ found."
               (return-from ,parser-name
                 (values node tokens)))))))))
 
-;;; Top-most parser function is just defined by calling equality node, so for
-;;; now, it doesn't require using macro for defining the rule.
+;;; These parsing rules are just defined by singular other parsing rule, so
+;;; for now, it doesn't require using macro for defining the rule.
+
+(defun parse-statement-node (tok)
+  "statement-node ::== expression-statement-node"
+  (parse-expression-statement-node tok))
+
+(defun parse-expression-statement-node (tok)
+  "expression-statement-node ::== expression-node ';'"
+  (multiple-value-bind (node tokens)
+      (parse-expression-node tok)
+    (values (make-ast-node :kind :expression-statement
+                           :lhs node)
+            (rest (skip-to-token ";" tokens)))))
+
 (defun parse-expression-node (tok)
   "expression-node ::== equality"
   (parse-equality-node tok))
@@ -125,3 +140,11 @@ found."
              (parse-expression-node (rest tok))
            (values node (rest (skip-to-token ")" tokens)))))
         (t (error 'parser-error))))
+
+(defun parse-program (tok &optional (nodes '()))
+  "program ::== statement-node *"
+  (if (not (eq (token-kind (first tok)) :eof))
+      (multiple-value-bind (node tokens)
+          (parse-statement-node tok)
+        (parse-program tokens (append nodes (list node))))
+      nodes))

@@ -3,24 +3,24 @@
 ;; NOTE: To run this test file, execute `(asdf:test-system :sila)' in your Lisp.
 
 (deftest test-emit-x86-64-integer
-  (let ((emit-asm-tests '(("0" . "  .globl main
+  (let ((emit-asm-tests '(("0;" . "  .globl main
 main:
   mov $0, %rax
   ret
 ")
-                          ("42" . "  .globl main
+                          ("42;" . "  .globl main
 main:
   mov $42, %rax
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
+      (ok (string-equal (sila/codegen:emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
+                  `(sila/codegen:emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-add-sub
-  (let ((emit-asm-tests '(("5+20-4" . "  .globl main
+  (let ((emit-asm-tests '(("5+20-4;" . "  .globl main
 main:
   mov $4, %rax
   push %rax
@@ -33,7 +33,7 @@ main:
   sub %rdi, %rax
   ret
 ")
-                          ("    5   +  20  -  4   " . "  .globl main
+                          ("    5   +  20  -  4   ;" . "  .globl main
 main:
   mov $4, %rax
   push %rax
@@ -47,13 +47,13 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
+      (ok (string-equal (sila/codegen:emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
+                  `(sila/codegen:emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-div-mul-parens
-  (let ((emit-asm-tests '(("2 / (1 + 1) * 8" . "  .globl main
+  (let ((emit-asm-tests '(("2 / (1 + 1) * 8;" . "  .globl main
 main:
   mov $8, %rax
   push %rax
@@ -72,20 +72,20 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
+      (ok (string-equal (sila/codegen:emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
+                  `(sila/codegen:emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-unary
-  (let ((emit-asm-tests '(("- -10" . "  .globl main
+  (let ((emit-asm-tests '(("- -10;" . "  .globl main
 main:
   mov $10, %rax
   neg %rax
   neg %rax
   ret
 ")
-                          ("-10+20" . "  .globl main
+                          ("-10+20;" . "  .globl main
 main:
   mov $20, %rax
   push %rax
@@ -95,7 +95,7 @@ main:
   add %rdi, %rax
   ret
 ")
-                          ("- - -10" . "  .globl main
+                          ("- - -10;" . "  .globl main
 main:
   mov $10, %rax
   neg %rax
@@ -104,13 +104,13 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
+      (ok (string-equal (sila/codegen:emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
+                  `(sila/codegen:emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
 (deftest test-emit-x86-64-comparisons
-  (let ((emit-asm-tests '(("1==1" . "  .globl main
+  (let ((emit-asm-tests '(("1==1;" . "  .globl main
 main:
   mov $1, %rax
   push %rax
@@ -121,7 +121,7 @@ main:
   movzb %al, %rax
   ret
 ")
-                           ("1>=1" . "  .globl main
+                           ("1>=1;" . "  .globl main
 main:
   mov $1, %rax
   push %rax
@@ -132,7 +132,7 @@ main:
   movzb %al, %rax
   ret
 ")
-                           ("1<=1" . "  .globl main
+                           ("1<=1;" . "  .globl main
 main:
   mov $1, %rax
   push %rax
@@ -143,7 +143,7 @@ main:
   movzb %al, %rax
   ret
 ")
-                           ("1<1" . "  .globl main
+                           ("1<1;" . "  .globl main
 main:
   mov $1, %rax
   push %rax
@@ -154,7 +154,7 @@ main:
   movzb %al, %rax
   ret
 ")
-                            ("1>1" . "  .globl main
+                            ("1>1;" . "  .globl main
 main:
   mov $1, %rax
   push %rax
@@ -166,7 +166,7 @@ main:
   ret
 "))))
     (dolist (test emit-asm-tests)
-      (ok (string-equal (sila::emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
+      (ok (string-equal (sila/codegen:emit-asm (car test) :indent 2 :indent-tabs nil) (cdr test))
           (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila::emit-asm ,(car test) :indent 2 :indent-tabs nil)
+                  `(sila/codegen:emit-asm ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
