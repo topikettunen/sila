@@ -55,8 +55,8 @@
 
 TODO(topi): Probably should do some proper error handling if `val' isn't
 found."
-  (cond ((eq (token-kind (first tok)) :eof) nil)
-        ((equal (token-value (first tok)) val) tok)
+  (cond ((eql (token-kind (first tok)) :eof) nil)
+        ((string= (token-value (first tok)) val) tok)
         (t (skip-to-token val (rest tok)))))
 
 (defun find-local-var (name)
@@ -159,7 +159,7 @@ found."
          (multiple-value-bind (node tokens)
              (parse-unary-node (rest tok))
            ;; In case something like '--10' is encountered.
-           (when (eq (token-value (first tokens)) #\-)
+           (when (eql (token-value (first tokens)) #\-)
              (parse-unary-node (rest tokens)))
            (values (make-ast-node :kind :neg :lhs node)
                    tokens)))
@@ -168,16 +168,16 @@ found."
 
 (defun parse-primary-node (tok)
   "primary-node ::== '(' expression-node ')' | ident | number"
-  (cond ((eq (token-kind (first tok)) :num)
+  (cond ((eql (token-kind (first tok)) :num)
          (values (make-ast-node :kind :number :value (token-value (first tok)))
                  (rest tok)))
-        ((eq (token-kind (first tok)) :ident)
+        ((eql (token-kind (first tok)) :ident)
          (let* ((name (token-value (first tok)))
                 (var (find-local-var name)))
            (unless var
              (setf var (make-object :name name))
              ;; New object should be in front of the list.
-             (appendf *local-variables* (append (list var) *local-variables*)))
+             (appendf *local-variables* (cons var *local-variables*)))
            (values (make-ast-node :kind :variable
                                   :variable var)
                    (rest tok))))
@@ -198,12 +198,14 @@ found."
       (setf (object-offset var) (- offset)))
     (setf (func-stack-size prog) (align-to offset 16))))
 
-(defun parse-program (tok &optional (nodes '()))
+(defun parse-program (tok)
   "program ::== statement-node *"
-  (if (not (eq (token-kind (first tok)) :eof))
-      (multiple-value-bind (node tokens)
-          (parse-statement-node tok)
-        (parse-program tokens (append nodes (list node))))
-      (let ((prog (make-func :body  nodes :locals *local-variables*)))
-        (set-lvar-offsets prog)
-        prog)))
+  (let ((nodes '()))
+    (loop :until (eql (token-kind (first tok)) :eof)
+          :do (multiple-value-bind (node tokens)
+                  (parse-statement-node tok)
+                (setf nodes (append nodes (list node))
+                      tok tokens)))
+    (let ((prog (make-func :body nodes :locals *local-variables*)))
+      (set-lvar-offsets prog)
+      prog)))

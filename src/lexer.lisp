@@ -114,7 +114,7 @@
                                                            :value val
                                                            :position src-pos
                                                            :length punct-len)))
-                         (setf src-pos (+ src-pos punct-len))))
+                         (incf src-pos punct-len)))
                       (t
                        (error 'lexer-error
                               :lexer-input src
