@@ -1,7 +1,5 @@
 (defpackage #:sila/conditions
-  (:use #:cl)
-  (:export #:lexer-error
-           #:parser-error))
+  (:use #:cl))
 (in-package #:sila/conditions)
 
 (defun format-lexer-error (stream pos input msg)

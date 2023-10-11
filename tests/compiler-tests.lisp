@@ -25,6 +25,8 @@
       (declare (ignore out err))
       (= expected-rc got-rc))))
 
+;;; To speed up these, these probably could be run in parallel.
+
 #+linux
 (deftest test-compilation-and-compare-rc
   (ok (compile-program-and-compare-rc "0;" 0))
@@ -43,4 +45,9 @@
   (ok (compile-program-and-compare-rc "0<1;" 1))
   (ok (compile-program-and-compare-rc "1<1;" 0))
   (ok (compile-program-and-compare-rc "1>=1;" 1))
-  (ok (compile-program-and-compare-rc "1>=2;" 0)))
+  (ok (compile-program-and-compare-rc "1>=2;" 0))
+  (ok (compile-program-and-compare-rc "1; 2; 3;" 3))
+  (ok (compile-program-and-compare-rc "a<-8; a;" 8))
+  (ok (compile-program-and-compare-rc "a<-3; b<-5; a+b;" 8))
+  (ok (compile-program-and-compare-rc "foo<-3; bar<-5; foo+bar;" 8))
+  (ok (compile-program-and-compare-rc "foo2<-3; bar2<-5; foo2+bar2;" 8)))
