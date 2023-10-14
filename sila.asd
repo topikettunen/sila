@@ -5,8 +5,7 @@
   :depends-on ("alexandria")
   :components ((:module "src"
                 :components
-                ((:file "conditions")
-                 (:file "lexer")
+                ((:file "lexer")
                  (:file "parser")
                  (:file "codegen")
                  (:file "sila"))))

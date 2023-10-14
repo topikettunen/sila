@@ -1,9 +1,7 @@
 (defpackage #:sila/lexer
   (:use #:cl)
   (:import-from #:alexandria
-                #:appendf)
-  (:import-from #:sila/conditions
-                #:lexer-error))
+                #:appendf))
 (in-package #:sila/lexer)
 
 (deftype kind ()
@@ -81,7 +79,7 @@
                            (error 'lexer-error
                                   :lexer-input src
                                   :error-msg "Ident can't start with a number."
-                                  :token-position src-pos))
+                                  :token-pos src-pos))
                          (cond (punct-pos
                                 (setf src-pos punct-pos)
                                 (when (and (char= (char src src-pos) #\<)
@@ -90,7 +88,7 @@
                                   (error 'lexer-error
                                          :lexer-input src
                                          :error-msg "Can't assign to a number."
-                                         :token-position src-pos)))
+                                         :token-pos src-pos)))
                                (t
                                 (setf src-pos (length src))))))
                       ((alpha-char-p (char src src-pos))
@@ -104,9 +102,7 @@
                                                            :value token-val
                                                            :length (length token-val)
                                                            :position src-pos)))
-                         (if punct-pos
-                             (setf src-pos punct-pos)
-                             (setf src-pos (length src)))))
+                         (setf src-pos (if punct-pos punct-pos (length src)))))
                       ((punctuatorp (char src src-pos))
                        (let* ((punct-len (punct-length src src-pos))
                               (val (subseq src src-pos (+ src-pos punct-len))))
@@ -119,7 +115,37 @@
                        (error 'lexer-error
                               :lexer-input src
                               :error-msg "Invalid token."
-                              :token-position src-pos)))))
+                              :token-pos src-pos)))))
     ;; No more tokens.
     (appendf tokens (list (make-token :kind :eof :position src-pos)))
     tokens))
+
+;;; Lexer error handling
+
+(defun format-lexer-error (stream pos input msg)
+  "Print lexer error in format like:
+
+Lexer error:
+
+1+a1
+  ^ msg
+"
+  (format stream "Lexer error:~%~%~a~%~{~a~}^ ~a"
+          input (make-list pos :initial-element #\Space) msg))
+
+(define-condition lexer-error (error)
+  ((token-pos :initarg :token-pos
+              :initform nil
+              :reader token-pos)
+   (error-msg :initarg :error-msg
+              :initform nil
+              :reader error-msg)
+   (lexer-input :initarg :lexer-input
+                :initform nil
+                :reader lexer-input))
+  (:report (lambda (condition stream)
+             (format-lexer-error stream
+                                 (token-pos condition)
+                                 (lexer-input condition)
+                                 (error-msg condition))))
+  (:documentation "Condition for when we encounter invalid token."))
