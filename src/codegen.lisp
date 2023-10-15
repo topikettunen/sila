@@ -139,8 +139,7 @@ only Linux is tested."
                       :append (loop :for inst :in (generate-statement node)
                                     :collect (format nil "~a~a" indent inst)
                                     :do (unless (= 0 *stack-depth*)
-                                          (error 'parser-error
-                                                 :error-msg "Stack depth not 0."))))
+                                          (error "Stack depth not 0."))))
                 ;; Epilogue
                 (format nil "~amov %rbp, %rsp" indent)
                 (format nil "~apop %rbp" indent)
