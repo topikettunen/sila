@@ -12,6 +12,7 @@
                 #:ast-node-variable
                 #:ast-node-lhs
                 #:ast-node-rhs
+                #:ast-node-next
                 #:object-offset
                 #:func-body
                 #:func-stack-size
@@ -114,14 +115,15 @@
 only Linux is tested."
   ;; Init environment.
   ;; TODO(topi): These should probably be set in some smarter place.
-  (setf sila/parser::*local-variables* '()
+  (setf sila/parser::*local-variables* nil
         sila/codegen::*stack-depth* 0)
   (let ((indent (if indent-tabs
                     #\Tab
                     (coerce (make-list indent
                                        :initial-element #\Space)
                             'string))))
-    (let ((prog (parse-program (tokenize src))))
+    (let* ((program (parse-program (tokenize src)))
+           (node (func-body program)))
       (format stream
               "~{~a~%~}"
               (flatten
@@ -133,13 +135,14 @@ only Linux is tested."
                 ;; Prologue
                 (format nil "~apush %rbp" indent)
                 (format nil "~amov %rsp, %rbp" indent)
-                (format nil "~asub $~a, %rsp" indent (func-stack-size prog))
+                (format nil "~asub $~a, %rsp" indent (func-stack-size program))
                 ;; ASM Routine
-                (loop :for node :in (func-body prog)
+                (loop :while node
                       :append (loop :for inst :in (generate-statement node)
-                                    :collect (format nil "~a~a" indent inst)
-                                    :do (unless (= 0 *stack-depth*)
-                                          (error "Stack depth not 0."))))
+                                    :collect (if (not (= 0 *stack-depth*))
+                                                 (error "Stack depth not 0.")
+                                                 (format nil "~a~a" indent inst)))
+                      :do (setf node (ast-node-next node)))
                 ;; Epilogue
                 (format nil "~amov %rbp, %rsp" indent)
                 (format nil "~apop %rbp" indent)

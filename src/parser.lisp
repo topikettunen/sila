@@ -4,7 +4,8 @@
                 #:appendf)
   (:import-from #:sila/lexer
                 #:token-kind
-                #:token-value))
+                #:token-value
+                #:token-next))
 (in-package #:sila/parser)
 
 (deftype ast-node-kind ()
@@ -26,22 +27,26 @@
     :variable
     :number))
 
+;; TODO(topi): Set types for these slots.
 (defstruct ast-node
   "Structure for Sila AST nodes."
   kind
-  value    ; Used if `kind' is `:number'.
-  variable ; Used if `kind' is `:variable'.
+  value                                 ; Used if `kind' is `:number'.
+  variable                              ; Used if `kind' is `:variable'.
   lhs
-  rhs)
+  rhs
+  next)
 
-(defparameter *local-variables* '()
-  "Local variable instances created during parsing.")
+(defvar *local-variables* nil)
 
+;; TODO(topi): Set types for these slots.
 (defstruct object
   "Structure for local variables."
   name
-  offset)
+  offset
+  next)
 
+;; TODO(topi): Set types for these slots.
 (defstruct func
   "Structure for functions."
   body
@@ -53,14 +58,9 @@
 
 TODO(topi): Probably should do some proper error handling if `val' isn't
 found."
-  (cond ((eql (token-kind (first tok)) :eof) nil)
-        ((string= (token-value (first tok)) val) tok)
-        (t (skip-to-token val (rest tok)))))
-
-(defun find-local-var (name)
-  (dolist (var *local-variables*)
-    (when (string= name (object-name var))
-      (return-from find-local-var var))))
+  (cond ((eql (token-kind tok) :eof) nil)
+        ((string= (token-value tok) val) tok)
+        (t (skip-to-token val (token-next tok)))))
 
 (defun parse-statement-node (tok)
   "statement-node ::== expression-statement-node"
@@ -72,7 +72,7 @@ found."
       (parse-expression-node tok)
     (values (make-ast-node :kind :expression-statement
                            :lhs node)
-            (rest (skip-to-token ";" tokens)))))
+            (token-next (skip-to-token ";" tokens)))))
 
 (defun parse-expression-node (tok)
   "expression-node ::== assign"
@@ -80,16 +80,16 @@ found."
 
 (defun parse-assign-node (tok)
   "assign-node ::== equality ( '<-' assign ) ?"
-  (multiple-value-bind (node tokens)
+  (multiple-value-bind (node rest)
       (parse-equality-node tok)
-    (when (string= (token-value (first tokens)) "<-")
-      (multiple-value-bind (node2 tokens2)
-          (parse-assign-node (rest tokens))
+    (when (string= (token-value rest) "<-")
+      (multiple-value-bind (node2 rest2)
+          (parse-assign-node (token-next rest))
         (setf node (make-ast-node :kind :assign
                                   :lhs node
                                   :rhs node2))
-        (setf tokens tokens2)))
-    (values node tokens)))
+        (setf rest rest2)))
+    (values node rest)))
 
 (defmacro define-binop-parser (name &key descent-parser comparison-symbols bnf)
   "Macro for generating new binary operator parser rules."
@@ -97,21 +97,21 @@ found."
         (descent-parser-name (intern (format nil "PARSE-~a-NODE" descent-parser))))
     `(defun ,parser-name (tok)
        ,bnf
-       (multiple-value-bind (node tokens)
+       (multiple-value-bind (node rest)
            (,descent-parser-name tok)
          (loop
            (cond
              ,@(loop :for symbol :in comparison-symbols
-                     :collect `((string= (token-value (first tokens)) ,(car symbol))
-                                (multiple-value-bind (node2 tokens2)
-                                    (,descent-parser-name (rest tokens))
+                     :collect `((string= (token-value rest) ,(car symbol))
+                                (multiple-value-bind (node2 rest2)
+                                    (,descent-parser-name (token-next rest))
                                   (setf node (make-ast-node :kind ,(cdr symbol)
                                                             :lhs node
                                                             :rhs node2))
-                                  (setf tokens tokens2))))
+                                  (setf rest rest2))))
              (t
               (return-from ,parser-name
-                (values node tokens)))))))))
+                (values node rest)))))))))
 
 (define-binop-parser equality
   :descent-parser relational
@@ -141,60 +141,73 @@ found."
 
 (defun parse-unary-node (tok)
   "unary-node ::== ( '+' | '-' ) unary | primary-node"
-  (cond ((string= (token-value (first tok)) "+")
-         (parse-unary-node (rest tok)))
-        ((string= (token-value (first tok)) "-")
-         (multiple-value-bind (node tokens)
-             (parse-unary-node (rest tok))
+  (cond ((string= (token-value tok) "+")
+         (parse-unary-node (token-next tok)))
+        ((string= (token-value tok) "-")
+         (multiple-value-bind (node rest)
+             (parse-unary-node (token-next tok))
            ;; In case something like '--10' is encountered.
-           (when (eql (token-value (first tokens)) #\-)
-             (parse-unary-node (rest tokens)))
+           (when (eql (token-value rest) #\-)
+             (parse-unary-node (token-next rest)))
            (values (make-ast-node :kind :neg :lhs node)
-                   tokens)))
+                   rest)))
         (t
          (parse-primary-node tok))))
 
+(defun find-local-var (name)
+  (let ((obj *local-variables*))
+    (loop :while obj
+          :do (if (string= name (object-name obj))
+                  (return-from find-local-var obj)
+                  (setf obj (object-next obj))))))
+
 (defun parse-primary-node (tok)
   "primary-node ::== '(' expression-node ')' | ident | number"
-  (cond ((eql (token-kind (first tok)) :num)
-         (values (make-ast-node :kind :number :value (token-value (first tok)))
-                 (rest tok)))
-        ((eql (token-kind (first tok)) :ident)
-         (let* ((name (token-value (first tok)))
+  (cond ((eql (token-kind tok) :num)
+         (values (make-ast-node :kind :number :value (token-value tok))
+                 (token-next tok)))
+        ((eql (token-kind tok) :ident)
+         (let* ((name (token-value tok))
                 (var (find-local-var name)))
            (unless var
-             (setf var (make-object :name name))
+             (setf var (make-object :name name :next *local-variables*))
              ;; New object should be in front of the list.
-             (appendf *local-variables* (cons var *local-variables*)))
+             (setf *local-variables* var))
            (values (make-ast-node :kind :variable
                                   :variable var)
-                   (rest tok))))
-        ((string= (token-value (first tok)) "(")
-         (multiple-value-bind (node tokens)
-             (parse-expression-node (rest tok))
-           (values node (rest (skip-to-token ")" tokens)))))
-        (t (error "Unexpected token value: ~a" (first tok)))))
+                   (token-next tok))))
+        ((string= (token-value tok) "(")
+         (multiple-value-bind (node rest)
+             (parse-expression-node (token-next tok))
+           (values node (token-next (skip-to-token ")" rest)))))
+        (t (error "Unexpected token value: ~a" tok))))
 
 (defun align-to (n align)
   "Round `n' to the nearest multiple of `align'."
   (* (ceiling n align) align))
 
 (defmacro set-lvar-offsets (program)
-  (let ((offset-var (gensym)))
-    `(let ((,offset-var 0))
-       (dolist (var (func-locals ,program))
-         (incf ,offset-var 8)
-         (setf (object-offset var) (- ,offset-var)))
+  (let ((offset-var (gensym))
+        (obj-var (gensym)))
+    `(let ((,offset-var 0)
+           (,obj-var (func-locals ,program)))
+       (loop :while ,obj-var
+             :do (progn
+                   (incf ,offset-var 8)
+                   (setf (object-offset ,obj-var) (- ,offset-var))
+                   (setf ,obj-var (object-next ,obj-var))))
        (setf (func-stack-size ,program) (align-to ,offset-var 16)))))
 
 (defun parse-program (tok)
   "program ::== statement-node *"
-  (let ((nodes '()))
-    (loop :until (eql (token-kind (first tok)) :eof)
-          :do (multiple-value-bind (node tokens)
+  (let* ((head (make-ast-node))
+         (cur head))
+    (loop :until (eql (token-kind tok) :eof)
+          :do (multiple-value-bind (node rest)
                   (parse-statement-node tok)
-                (setf nodes (append nodes (list node))
-                      tok tokens)))
-    (let ((program (make-func :body nodes :locals *local-variables*)))
-      (set-lvar-offsets program)
-      program)))
+                (setf (ast-node-next cur) node)
+                (setf cur (ast-node-next cur))
+                (setf tok rest)))
+   (let ((program (make-func :body (ast-node-next head) :locals *local-variables*)))
+     (set-lvar-offsets program)
+     program)))

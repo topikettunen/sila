@@ -12,12 +12,14 @@
     :num
     :eof))
 
+;; TODO(topi): Set types for these slots.
 (defstruct token
   "Structure for Sila tokens."
   kind
   position
   length
-  value)
+  value
+  next)
 
 (defun whitespacep (c)
   "Predicate for whitespace."
@@ -54,8 +56,9 @@
 
 (defun tokenize (src)
   "Generate tokens from the given source code."
-  (let ((tokens '())
-        (src-pos 0))
+  (let* ((head (make-token))
+         (cur head)
+         (src-pos 0))
     (loop :while (< src-pos (length src))
           :do (let ((punct-pos (skip-to-punctuator src src-pos)))
                 (cond ((whitespacep (char src src-pos))
@@ -67,10 +70,6 @@
                                              (- (length src) src-pos)))
                               (token-val (trim-whitespace
                                           (subseq src src-pos (+ src-pos token-len)))))
-                         (appendf tokens (list (make-token :kind :num
-                                                           :value token-val
-                                                           :length (length token-val)
-                                                           :position src-pos)))
                          ;; Idents starting with a letter will be catched with
                          ;; a diffenret conditional so if this is hit, ident
                          ;; starts with a number but contains letters, which
@@ -80,6 +79,12 @@
                                   :lexer-input src
                                   :error-msg "Ident can't start with a number."
                                   :token-pos src-pos))
+                         (setf (token-next cur)
+                               (make-token :kind :num
+                                           :value token-val
+                                           :length (length token-val)
+                                           :position src-pos))
+                         (setf cur (token-next cur))
                          (cond (punct-pos
                                 (setf src-pos punct-pos)
                                 (when (and (char= (char src src-pos) #\<)
@@ -98,18 +103,22 @@
                                              (- (length src) src-pos)))
                               (token-val (trim-whitespace
                                           (subseq src src-pos (+ src-pos token-len)))))
-                         (appendf tokens (list (make-token :kind :ident
-                                                           :value token-val
-                                                           :length (length token-val)
-                                                           :position src-pos)))
+                         (setf (token-next cur)
+                               (make-token :kind :ident
+                                           :value token-val
+                                           :length (length token-val)
+                                           :position src-pos))
+                         (setf cur (token-next cur))
                          (setf src-pos (if punct-pos punct-pos (length src)))))
                       ((punctuatorp (char src src-pos))
                        (let* ((punct-len (punct-length src src-pos))
                               (val (subseq src src-pos (+ src-pos punct-len))))
-                         (appendf tokens (list (make-token :kind :punct
-                                                           :value val
-                                                           :position src-pos
-                                                           :length punct-len)))
+                         (setf (token-next cur)
+                               (make-token :kind :punct
+                                           :value val
+                                           :position src-pos
+                                           :length punct-len))
+                         (setf cur (token-next cur))
                          (incf src-pos punct-len)))
                       (t
                        (error 'lexer-error
@@ -117,8 +126,9 @@
                               :error-msg "Invalid token."
                               :token-pos src-pos)))))
     ;; No more tokens.
-    (appendf tokens (list (make-token :kind :eof :position src-pos)))
-    tokens))
+    (setf (token-next cur) (make-token :kind :eof :position src-pos))
+    (setf cur (token-next cur))
+    (token-next head)))
 
 ;;; Lexer error handling
 

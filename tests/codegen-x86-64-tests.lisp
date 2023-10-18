@@ -236,6 +236,25 @@ main:
                   `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
                   (cdr test))))))
 
+(deftest test-emit-multiple-statements
+  (let ((emit-code-tests '(("1;2;3;" . "  .globl main
+main:
+  push %rbp
+  mov %rsp, %rbp
+  sub $0, %rsp
+  mov $1, %rax
+  mov $2, %rax
+  mov $3, %rax
+  mov %rbp, %rsp
+  pop %rbp
+  ret
+"))))
+    (dolist (test emit-code-tests)
+      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
+          (format nil "Expect to be equal: ~%~a~%=>~a"
+                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
+                  (cdr test))))))
+
 (deftest test-emit-x86-64-variables
   (let ((emit-code-tests '(("a<-8;a;" . "  .globl main
 main:
@@ -257,21 +276,21 @@ main:
 main:
   push %rbp
   mov %rsp, %rbp
-  sub $32, %rsp
-  lea -24(%rbp), %rax
+  sub $16, %rsp
+  lea -16(%rbp), %rax
   push %rax
   mov $5, %rax
   pop %rdi
   mov %rax, (%rdi)
-  lea -16(%rbp), %rax
+  lea -8(%rbp), %rax
   push %rax
   mov $8, %rax
   pop %rdi
   mov %rax, (%rdi)
-  lea -16(%rbp), %rax
+  lea -8(%rbp), %rax
   mov (%rax), %rax
   push %rax
-  lea -24(%rbp), %rax
+  lea -16(%rbp), %rax
   mov (%rax), %rax
   pop %rdi
   add %rdi, %rax
