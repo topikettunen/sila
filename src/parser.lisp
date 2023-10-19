@@ -155,11 +155,11 @@ found."
          (parse-primary-node tok))))
 
 (defun find-local-var (name)
-  (let ((obj *local-variables*))
-    (loop :while obj
-          :do (if (string= name (object-name obj))
-                  (return-from find-local-var obj)
-                  (setf obj (object-next obj))))))
+  (loop :for obj := *local-variables*
+          :then (setf obj (object-next obj))
+        :until (null obj)
+        :do (when (string= name (object-name obj))
+              (return-from find-local-var obj))))
 
 (defun parse-primary-node (tok)
   "primary-node ::== '(' expression-node ')' | ident | number"
@@ -187,16 +187,16 @@ found."
   (* (ceiling n align) align))
 
 (defmacro set-lvar-offsets (program)
-  (let ((offset-var (gensym))
-        (obj-var (gensym)))
-    `(let ((,offset-var 0)
-           (,obj-var (func-locals ,program)))
-       (loop :while ,obj-var
+  (let ((offset-var (gensym)))
+    `(let ((,offset-var 0))
+       (loop :for obj := (func-locals ,program)
+               :then (setf obj (object-next obj))
+             :until (null obj)
              :do (progn
                    (incf ,offset-var 8)
-                   (setf (object-offset ,obj-var) (- ,offset-var))
-                   (setf ,obj-var (object-next ,obj-var))))
-       (setf (func-stack-size ,program) (align-to ,offset-var 16)))))
+                   (setf (object-offset obj) (- ,offset-var))))
+       (setf (func-stack-size ,program) (align-to ,offset-var 16))
+       (values))))
 
 (defun parse-program (tok)
   "program ::== statement-node *"

@@ -2,8 +2,16 @@
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :sila)' in your Lisp.
 
+(defun run-emit-code-tests (testcases)
+  (dolist (test testcases)
+    (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
+        (format nil "Expect to be equal: ~%~a~%=>~a"
+                `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
+                (cdr test))))
+  (values))
+
 (deftest test-emit-x86-64-integer
-  (let ((emit-code-tests '(("0;" . "  .globl main
+  (let ((tests '(("0;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -13,7 +21,7 @@ main:
   pop %rbp
   ret
 ")
-                          ("42;" . "  .globl main
+                 ("42;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -23,14 +31,10 @@ main:
   pop %rbp
   ret
 "))))
-    (dolist (test emit-code-tests)
-      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-          (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                  (cdr test))))))
+    (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-add-sub
-  (let ((emit-code-tests '(("5+20-4;" . "  .globl main
+  (let ((tests '(("5+20-4;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -48,7 +52,7 @@ main:
   pop %rbp
   ret
 ")
-                          ("    5   +  20  -  4   ;" . "  .globl main
+                 ("    5   +  20  -  4   ;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -66,14 +70,10 @@ main:
   pop %rbp
   ret
 "))))
-    (dolist (test emit-code-tests)
-      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-          (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                  (cdr test))))))
+    (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-div-mul-parens
-  (let ((emit-code-tests '(("2 / (1 + 1) * 8;" . "  .globl main
+  (let ((tests '(("2 / (1 + 1) * 8;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -96,14 +96,10 @@ main:
   pop %rbp
   ret
 "))))
-    (dolist (test emit-code-tests)
-      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-          (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                  (cdr test))))))
+    (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-unary
-  (let ((emit-code-tests '(("- -10;" . "  .globl main
+  (let ((tests '(("- -10;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -115,7 +111,7 @@ main:
   pop %rbp
   ret
 ")
-                          ("-10+20;" . "  .globl main
+                 ("-10+20;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -130,7 +126,7 @@ main:
   pop %rbp
   ret
 ")
-                          ("- - -10;" . "  .globl main
+                 ("- - -10;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -143,14 +139,10 @@ main:
   pop %rbp
   ret
 "))))
-    (dolist (test emit-code-tests)
-      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-          (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                  (cdr test))))))
+    (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-comparisons
-  (let ((emit-code-tests '(("1==1;" . "  .globl main
+  (let ((tests '(("1==1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -166,7 +158,7 @@ main:
   pop %rbp
   ret
 ")
-                           ("1>=1;" . "  .globl main
+                 ("1>=1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -182,7 +174,7 @@ main:
   pop %rbp
   ret
 ")
-                           ("1<=1;" . "  .globl main
+                 ("1<=1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -198,7 +190,7 @@ main:
   pop %rbp
   ret
 ")
-                           ("1<1;" . "  .globl main
+                 ("1<1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -214,7 +206,7 @@ main:
   pop %rbp
   ret
 ")
-                            ("1>1;" . "  .globl main
+                 ("1>1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -230,14 +222,10 @@ main:
   pop %rbp
   ret
 "))))
-    (dolist (test emit-code-tests)
-      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-          (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                  (cdr test))))))
+    (run-emit-code-tests tests)))
 
 (deftest test-emit-multiple-statements
-  (let ((emit-code-tests '(("1;2;3;" . "  .globl main
+  (let ((tests '(("1;2;3;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -249,14 +237,10 @@ main:
   pop %rbp
   ret
 "))))
-    (dolist (test emit-code-tests)
-      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-          (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                  (cdr test))))))
+    (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-variables
-  (let ((emit-code-tests '(("a<-8;a;" . "  .globl main
+  (let ((tests '(("a<-8;a;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -272,7 +256,7 @@ main:
   pop %rbp
   ret
 ")
-                          ("foo<-5;bar<-8;foo+bar;" . "  .globl main
+                 ("foo<-5;bar<-8;foo+bar;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -298,8 +282,4 @@ main:
   pop %rbp
   ret
 "))))
-    (dolist (test emit-code-tests)
-      (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-          (format nil "Expect to be equal: ~%~a~%=>~a"
-                  `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                  (cdr test))))))
+    (run-emit-code-tests tests)))

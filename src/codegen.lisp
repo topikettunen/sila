@@ -122,8 +122,7 @@ only Linux is tested."
                     (coerce (make-list indent
                                        :initial-element #\Space)
                             'string))))
-    (let* ((program (parse-program (tokenize src)))
-           (node (func-body program)))
+    (let ((program (parse-program (tokenize src))))
       (format stream
               "~{~a~%~}"
               (flatten
@@ -137,12 +136,13 @@ only Linux is tested."
                 (format nil "~amov %rsp, %rbp" indent)
                 (format nil "~asub $~a, %rsp" indent (func-stack-size program))
                 ;; ASM Routine
-                (loop :while node
+                (loop :for node := (func-body program)
+                        :then (setf node (ast-node-next node))
+                      :until (null node)
                       :append (loop :for inst :in (generate-statement node)
                                     :collect (if (not (= 0 *stack-depth*))
                                                  (error "Stack depth not 0.")
-                                                 (format nil "~a~a" indent inst)))
-                      :do (setf node (ast-node-next node)))
+                                                 (format nil "~a~a" indent inst))))
                 ;; Epilogue
                 (format nil "~amov %rbp, %rsp" indent)
                 (format nil "~apop %rbp" indent)
