@@ -147,7 +147,7 @@ found."
          (multiple-value-bind (node rest)
              (parse-unary-node (token-next tok))
            ;; In case something like '--10' is encountered.
-           (when (eql (token-value rest) #\-)
+           (when (string= (token-value rest) "-")
              (parse-unary-node (token-next rest)))
            (values (make-ast-node :kind :neg :lhs node)
                    rest)))
@@ -195,8 +195,7 @@ found."
              :do (progn
                    (incf ,offset-var 8)
                    (setf (object-offset obj) (- ,offset-var))))
-       (setf (func-stack-size ,program) (align-to ,offset-var 16))
-       (values))))
+       (setf (func-stack-size ,program) (align-to ,offset-var 16)))))
 
 (defun parse-program (tok)
   "program ::== statement-node *"
