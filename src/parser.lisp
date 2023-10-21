@@ -23,6 +23,7 @@
     :greater-than
     :greater-or-equal
     :assign
+    :return-statement
     :expression-statement
     :variable
     :number))
@@ -63,23 +64,31 @@ found."
         (t (skip-to-token val (token-next tok)))))
 
 (defun parse-statement-node (tok)
-  "statement-node ::== expression-statement-node"
+  "statement-node ::== 'ret' expression ';'
+                     | expression-statement-node"
+  (when (string= (token-value tok) "ret")
+    (multiple-value-bind (node rest)
+        (parse-expression-node (token-next tok))
+      (return-from parse-statement-node
+        (values (make-ast-node :kind :return-statement
+                               :lhs node)
+                (token-next (skip-to-token ";" rest))))))
   (parse-expression-statement-node tok))
 
 (defun parse-expression-statement-node (tok)
   "expression-statement-node ::== expression-node ';'"
-  (multiple-value-bind (node tokens)
+  (multiple-value-bind (node rest)
       (parse-expression-node tok)
     (values (make-ast-node :kind :expression-statement
                            :lhs node)
-            (token-next (skip-to-token ";" tokens)))))
+            (token-next (skip-to-token ";" rest)))))
 
 (defun parse-expression-node (tok)
   "expression-node ::== assign"
   (parse-assign-node tok))
 
 (defun parse-assign-node (tok)
-  "assign-node ::== equality ( '<-' assign ) ?"
+  "assign-node ::== equality ( ':=' assign ) ?"
   (multiple-value-bind (node rest)
       (parse-equality-node tok)
     (when (string= (token-value rest) ":=")
@@ -186,16 +195,16 @@ found."
   "Round `n' to the nearest multiple of `align'."
   (* (ceiling n align) align))
 
-(defmacro set-lvar-offsets (program)
-  (let ((offset-var (gensym)))
-    `(let ((,offset-var 0))
-       (loop :for obj := (func-locals ,program)
-               :then (setf obj (object-next obj))
-             :until (null obj)
-             :do (progn
-                   (incf ,offset-var 8)
-                   (setf (object-offset obj) (- ,offset-var))))
-       (setf (func-stack-size ,program) (align-to ,offset-var 16)))))
+(defun set-lvar-offsets (program)
+  (let ((offset 0))
+     (loop :for obj := (func-locals program)
+             :then (setf obj (object-next obj))
+           :until (null obj)
+           :do (progn
+                 (incf offset 8)
+                 (setf (object-offset obj) (- offset))))
+     (setf (func-stack-size program) (align-to offset 16)))
+  (values))
 
 (defun parse-program (tok)
   "program ::== statement-node *"

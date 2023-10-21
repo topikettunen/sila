@@ -30,15 +30,18 @@
   (asm-inst "push %rax"))
 
 (defun asm-pop (reg)
-  (when (<= *stack-depth* 0)
-    (error "Can't pop from an empty stack."))
+  (assert (> *stack-depth* 0))
   (decf *stack-depth*)
   (asm-inst (format nil "pop %~a" reg)))
 
-(defun generate-statement (node)
-  (if (eql (ast-node-kind node) :expression-statement)
-      (generate-code (ast-node-lhs node))
-      (error (format nil "Expected expression statement, got: ~a" node))))
+(defun generate-statement (node &optional (insts '()))
+  (ecase (ast-node-kind node)
+    (:return-statement
+     (appendf insts (generate-code (ast-node-lhs node)))
+     (appendf insts (asm-inst "jmp .L.return"))
+     insts)
+    (:expression-statement
+     (generate-code (ast-node-lhs node)))))
 
 (defun generate-address (node)
   (if (eql (ast-node-kind node) :variable)
@@ -71,12 +74,13 @@
        (appendf insts (generate-code (ast-node-rhs node)))
        (appendf insts (asm-pop "rdi"))
        (appendf insts (asm-inst "mov %rax, (%rdi)"))
-       (return-from generate-code insts)))
+       (return-from generate-code insts))
+      (otherwise (values)))
     (appendf insts (generate-code (ast-node-rhs node)))
     (appendf insts (asm-push))
     (appendf insts (generate-code (ast-node-lhs node)))
     (appendf insts (asm-pop "rdi"))
-    (case kind
+    (ecase kind
       (:add
        (appendf insts (asm-inst "add %rdi, %rax")))
       (:sub
@@ -106,9 +110,8 @@
           (appendf insts (asm-inst "setg %al")))
          (:greater-or-equal
           (appendf insts (asm-inst "setge %al")))
-         (t nil))
-       (appendf insts (asm-inst "movzb %al, %rax")))
-      (t (error "Invalid node kind, got ~a" kind)))))
+         (otherwise (values)))
+       (appendf insts (asm-inst "movzb %al, %rax"))))))
 
 (defun emit-code (src &key (stream nil) (indent 2) (indent-tabs t))
   "Emit assembly code from given source code. Currently emits only x86-64 and
@@ -123,13 +126,16 @@ only Linux is tested."
                                        :initial-element #\Space)
                             'string))))
     (let ((program (parse-program (tokenize src))))
+      ;; TODO(topi): these instructions probably should be collected to some
+      ;; structure so they can be divided in to sections more easily when the
+      ;; programs become more complex.
       (format stream
               "~{~a~%~}"
               (flatten
                (list
                 ;; ASM Directive
                 (format nil "~a.globl main" indent)
-                ;; ASM Label
+                ;; Main Label
                 "main:"
                 ;; Prologue
                 (format nil "~apush %rbp" indent)
@@ -140,9 +146,10 @@ only Linux is tested."
                         :then (setf node (ast-node-next node))
                       :until (null node)
                       :append (loop :for inst :in (generate-statement node)
-                                    :collect (if (not (= 0 *stack-depth*))
-                                                 (error "Stack depth not 0.")
-                                                 (format nil "~a~a" indent inst))))
+                                    :do (assert (= 0 *stack-depth*))
+                                    :collect (format nil "~a~a" indent inst)))
+                ;; Return label
+                ".L.return:"
                 ;; Epilogue
                 (format nil "~amov %rbp, %rsp" indent)
                 (format nil "~apop %rbp" indent)

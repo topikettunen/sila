@@ -17,6 +17,7 @@ main:
   mov %rsp, %rbp
   sub $0, %rsp
   mov $0, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -27,6 +28,7 @@ main:
   mov %rsp, %rbp
   sub $0, %rsp
   mov $42, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -48,6 +50,7 @@ main:
   add %rdi, %rax
   pop %rdi
   sub %rdi, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -66,6 +69,7 @@ main:
   add %rdi, %rax
   pop %rdi
   sub %rdi, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -92,6 +96,7 @@ main:
   idiv %rdi, %rax
   pop %rdi
   imul %rdi, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -107,6 +112,7 @@ main:
   mov $10, %rax
   neg %rax
   neg %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -122,6 +128,7 @@ main:
   neg %rax
   pop %rdi
   add %rdi, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -135,6 +142,7 @@ main:
   neg %rax
   neg %rax
   neg %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -154,6 +162,7 @@ main:
   cmp %rdi, %rax
   sete %al
   movzb %al, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -170,6 +179,7 @@ main:
   cmp %rdi, %rax
   setge %al
   movzb %al, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -186,6 +196,7 @@ main:
   cmp %rdi, %rax
   setle %al
   movzb %al, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -202,6 +213,7 @@ main:
   cmp %rdi, %rax
   setl %al
   movzb %al, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -218,6 +230,7 @@ main:
   cmp %rdi, %rax
   setg %al
   movzb %al, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -233,6 +246,7 @@ main:
   mov $1, %rax
   mov $2, %rax
   mov $3, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -252,6 +266,7 @@ main:
   mov %rax, (%rdi)
   lea -8(%rbp), %rax
   mov (%rax), %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
@@ -278,6 +293,7 @@ main:
   mov (%rax), %rax
   pop %rdi
   add %rdi, %rax
+.L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
