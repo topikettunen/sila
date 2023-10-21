@@ -11,23 +11,25 @@
   (values))
 
 (deftest test-emit-x86-64-integer
-  (let ((tests '(("0;" . "  .globl main
+  (let ((tests '(("return 0;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
   sub $0, %rsp
   mov $0, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("42;" . "  .globl main
+                 ("return 42;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
   sub $0, %rsp
   mov $42, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
@@ -36,7 +38,7 @@ main:
     (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-add-sub
-  (let ((tests '(("5+20-4;" . "  .globl main
+  (let ((tests '(("return 5+20-4;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -50,12 +52,13 @@ main:
   add %rdi, %rax
   pop %rdi
   sub %rdi, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("    5   +  20  -  4   ;" . "  .globl main
+                 ("return    5   +  20  -  4   ;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -69,6 +72,7 @@ main:
   add %rdi, %rax
   pop %rdi
   sub %rdi, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
@@ -77,7 +81,7 @@ main:
     (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-div-mul-parens
-  (let ((tests '(("2 / (1 + 1) * 8;" . "  .globl main
+  (let ((tests '(("return 2 / (1 + 1) * 8;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -96,6 +100,7 @@ main:
   idiv %rdi, %rax
   pop %rdi
   imul %rdi, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
@@ -104,7 +109,7 @@ main:
     (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-unary
-  (let ((tests '(("- -10;" . "  .globl main
+  (let ((tests '(("return - -10;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -112,12 +117,13 @@ main:
   mov $10, %rax
   neg %rax
   neg %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("-10+20;" . "  .globl main
+                 ("return -10+20;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -128,12 +134,13 @@ main:
   neg %rax
   pop %rdi
   add %rdi, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("- - -10;" . "  .globl main
+                 ("return - - -10;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -142,6 +149,7 @@ main:
   neg %rax
   neg %rax
   neg %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
@@ -150,7 +158,7 @@ main:
     (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-comparisons
-  (let ((tests '(("1==1;" . "  .globl main
+  (let ((tests '(("return 1==1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -162,12 +170,13 @@ main:
   cmp %rdi, %rax
   sete %al
   movzb %al, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("1>=1;" . "  .globl main
+                 ("return 1>=1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -179,12 +188,13 @@ main:
   cmp %rdi, %rax
   setge %al
   movzb %al, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("1<=1;" . "  .globl main
+                 ("return 1<=1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -196,12 +206,13 @@ main:
   cmp %rdi, %rax
   setle %al
   movzb %al, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("1<1;" . "  .globl main
+                 ("return 1<1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -213,12 +224,13 @@ main:
   cmp %rdi, %rax
   setl %al
   movzb %al, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("1>1;" . "  .globl main
+                 ("return 1>1;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -230,6 +242,7 @@ main:
   cmp %rdi, %rax
   setg %al
   movzb %al, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
@@ -238,7 +251,35 @@ main:
     (run-emit-code-tests tests)))
 
 (deftest test-emit-multiple-statements
-  (let ((tests '(("1;2;3;" . "  .globl main
+  (let ((tests '(("return 1;2;3;" . "  .globl main
+main:
+  push %rbp
+  mov %rsp, %rbp
+  sub $0, %rsp
+  mov $1, %rax
+  jmp .L.return
+  mov $2, %rax
+  mov $3, %rax
+.L.return:
+  mov %rbp, %rsp
+  pop %rbp
+  ret
+")
+                 ("1;return 2;3;" . "  .globl main
+main:
+  push %rbp
+  mov %rsp, %rbp
+  sub $0, %rsp
+  mov $1, %rax
+  mov $2, %rax
+  jmp .L.return
+  mov $3, %rax
+.L.return:
+  mov %rbp, %rsp
+  pop %rbp
+  ret
+")
+                 ("1;2;return 3;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -246,6 +287,7 @@ main:
   mov $1, %rax
   mov $2, %rax
   mov $3, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
@@ -254,7 +296,7 @@ main:
     (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-variables
-  (let ((tests '(("a:=8;a;" . "  .globl main
+  (let ((tests '(("a:=8;return a;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -266,12 +308,13 @@ main:
   mov %rax, (%rdi)
   lea -8(%rbp), %rax
   mov (%rax), %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp
   ret
 ")
-                 ("foo:=5;bar:=8;foo+bar;" . "  .globl main
+                 ("foo:=5;bar:=8;return foo+bar;" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -293,6 +336,7 @@ main:
   mov (%rax), %rax
   pop %rdi
   add %rdi, %rax
+  jmp .L.return
 .L.return:
   mov %rbp, %rsp
   pop %rbp

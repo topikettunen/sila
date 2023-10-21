@@ -64,9 +64,9 @@ found."
         (t (skip-to-token val (token-next tok)))))
 
 (defun parse-statement-node (tok)
-  "statement-node ::== 'ret' expression ';'
+  "statement-node ::== 'return' expression ';'
                      | expression-statement-node"
-  (when (string= (token-value tok) "ret")
+  (when (string= (token-value tok) "return")
     (multiple-value-bind (node rest)
         (parse-expression-node (token-next tok))
       (return-from parse-statement-node

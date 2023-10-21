@@ -64,7 +64,7 @@ return any keyword and just return the current position."
     (when (null keyword-end)
       (return-from keyword-lookup (values nil pos)))
     (let ((keyword (subseq input pos keyword-end)))
-      (cond ((string= keyword "ret")
+      (cond ((string= keyword "return")
              (values keyword
                      (skip-to #'(lambda (c) (not (whitespacep c)))
                               input keyword-end)))
