@@ -49,7 +49,7 @@
                (string= "!=" punct)
                (string= "<=" punct)
                (string= ">=" punct)
-               (string= ":=" punct))
+               (string= "<-" punct))
            2)
           ((punctuatorp (char input pos))
            1)
@@ -106,9 +106,9 @@ return any keyword and just return the current position."
                      (setf cur (token-next cur))
                      (cond (punct-pos
                             (setf src-pos punct-pos)
-                            (when (and (char= (char src src-pos) #\:)
+                            (when (and (char= (char src src-pos) #\<)
                                        (ignore-errors
-                                        (char= (char src (1+ src-pos)) #\=)))
+                                        (char= (char src (1+ src-pos)) #\-)))
                               (error 'lexer-error
                                      :lexer-input src
                                      :error-msg "Can't assign to a number."

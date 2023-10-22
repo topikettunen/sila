@@ -107,10 +107,10 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
   (parse-assign-node tok))
 
 (defun parse-assign-node (tok)
-  "assign-node ::== equality ( ':=' assign ) ?"
+  "assign-node ::== equality ( '<-' assign ) ?"
   (multiple-value-bind (node rest)
       (parse-equality-node tok)
-    (when (string= (token-value rest) ":=")
+    (when (string= (token-value rest) "<-")
       (multiple-value-bind (node2 rest2)
           (parse-assign-node (token-next rest))
         (setf node (make-ast-node :kind :assign

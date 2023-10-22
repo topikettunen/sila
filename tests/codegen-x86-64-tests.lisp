@@ -296,7 +296,7 @@ main:
     (run-emit-code-tests tests)))
 
 (deftest test-emit-x86-64-variables
-  (let ((tests '(("{ a:=8;return a; }" . "  .globl main
+  (let ((tests '(("{ a<-8;return a; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -314,7 +314,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ foo:=5;bar:=8;return foo+bar; }" . "  .globl main
+                 ("{ foo<-5;bar<-8;return foo+bar; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp

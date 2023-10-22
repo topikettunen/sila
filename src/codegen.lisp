@@ -118,7 +118,8 @@
          (:greater-or-equal
           (appendf insts (asm-inst "setge %al")))
          (otherwise (values)))
-       (appendf insts (asm-inst "movzb %al, %rax"))))))
+       (appendf insts (asm-inst "movzb %al, %rax")))))
+  insts)
 
 (defun emit-code (src &key (stream nil) (indent 2) (indent-tabs t))
   "Emit assembly code from given source code. Currently emits only x86-64 and
