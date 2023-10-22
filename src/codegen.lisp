@@ -7,6 +7,7 @@
                 #:tokenize
                 #:token-kind)
   (:import-from #:sila/parser
+                #:ast-node-body
                 #:ast-node-kind
                 #:ast-node-value
                 #:ast-node-variable
@@ -36,6 +37,12 @@
 
 (defun generate-statement (node &optional (insts '()))
   (ecase (ast-node-kind node)
+    (:compound-statement
+     (loop :for body := (ast-node-body node)
+             :then (setf node (ast-node-next body))
+           :until (null node)
+           :append (loop :for inst :in (generate-statement body)
+                         :collect inst)))
     (:return-statement
      (appendf insts (generate-code (ast-node-lhs node)))
      (appendf insts (asm-inst "jmp .L.return"))
@@ -142,12 +149,8 @@ only Linux is tested."
                 (format nil "~amov %rsp, %rbp" indent)
                 (format nil "~asub $~a, %rsp" indent (func-stack-size program))
                 ;; ASM Routine
-                (loop :for node := (func-body program)
-                        :then (setf node (ast-node-next node))
-                      :until (null node)
-                      :append (loop :for inst :in (generate-statement node)
-                                    :do (assert (= 0 *stack-depth*))
-                                    :collect (format nil "~a~a" indent inst)))
+                (loop :for inst :in (generate-statement (func-body program))
+                      :collect (format nil "~a~a" indent inst))
                 ;; Return label
                 ".L.return:"
                 ;; Epilogue

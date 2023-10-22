@@ -24,6 +24,7 @@
     :greater-or-equal
     :assign
     :return-statement
+    :compound-statement ; { ... }
     :expression-statement
     :variable
     :number))
@@ -32,8 +33,9 @@
 (defstruct ast-node
   "Structure for Sila AST nodes."
   kind
-  value                                 ; Used if `kind' is `:number'.
-  variable                              ; Used if `kind' is `:variable'.
+  body
+  value    ; Used if `kind' is :NUMBER.
+  variable ; Used if `kind' is :VARIABLE.
   lhs
   rhs
   next)
@@ -55,16 +57,30 @@
   stack-size)
 
 (defun skip-to-token (val tok)
-  "Search for token which is `val'. Returns `nil' when not found.
+  "Search for token which is VAL. Returns NIL when not found.
 
-TODO(topi): Probably should do some proper error handling if `val' isn't
-found."
+TODO(topi): Probably should do some proper error handling if VAL isn't found."
   (cond ((eql (token-kind tok) :eof) nil)
         ((string= (token-value tok) val) tok)
         (t (skip-to-token val (token-next tok)))))
 
+(defun parse-compound-statement-node (tok)
+  "compound-statement-node ::== statement-node * '}'"
+  (let* ((head (make-ast-node))
+         (cur head))
+    (loop :until (string= (token-value tok) "}")
+          :do (multiple-value-bind (node rest)
+                  (parse-statement-node tok)
+                (setf (ast-node-next cur) node)
+                (setf cur (ast-node-next cur))
+                (setf tok rest)))
+    (values (make-ast-node :kind :compound-statement
+                           :body (ast-node-next head))
+            (token-next tok))))
+
 (defun parse-statement-node (tok)
-  "statement-node ::== 'return' expression ';'
+  "statement-node ::== 'return' expression-node ';'
+                     | '{' compound-statement-node
                      | expression-statement-node"
   (when (string= (token-value tok) "return")
     (multiple-value-bind (node rest)
@@ -73,6 +89,9 @@ found."
         (values (make-ast-node :kind :return-statement
                                :lhs node)
                 (token-next (skip-to-token ";" rest))))))
+  (when (string= (token-value tok) "{")
+    (return-from parse-statement-node
+      (parse-compound-statement-node (token-next tok))))
   (parse-expression-statement-node tok))
 
 (defun parse-expression-statement-node (tok)
@@ -178,7 +197,7 @@ found."
         ((eql (token-kind tok) :ident)
          (let* ((name (token-value tok))
                 (var (find-local-var name)))
-           (unless var
+           (when (null var)
              (setf var (make-object :name name :next *local-variables*))
              ;; New object should be in front of the list.
              (setf *local-variables* var))
@@ -192,7 +211,7 @@ found."
         (t (error "Unexpected token value: ~a" tok))))
 
 (defun align-to (n align)
-  "Round `n' to the nearest multiple of `align'."
+  "Round N to the nearest multiple of ALIGN."
   (* (ceiling n align) align))
 
 (defun set-lvar-offsets (program)
@@ -216,6 +235,7 @@ found."
                 (setf (ast-node-next cur) node)
                 (setf cur (ast-node-next cur))
                 (setf tok rest)))
-   (let ((program (make-func :body (ast-node-next head) :locals *local-variables*)))
-     (set-lvar-offsets program)
-     program)))
+    (let ((program (make-func :body (ast-node-next head)
+                              :locals *local-variables*)))
+      (set-lvar-offsets program)
+      program)))
