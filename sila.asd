@@ -19,8 +19,7 @@
                "rove")
   :components ((:module "tests"
                 :components
-                ((:file "package")
-                 (:file "compiler-tests")
+                ((:file "compiler-tests")
                  (:file "codegen-x86-64-tests"))))
   :description "Test system for sila"
   :perform (test-op (op c) (symbol-call :rove :run c)))

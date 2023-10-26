@@ -1,4 +1,8 @@
-(in-package #:sila/tests)
+(defpackage #:sila/tests/compiler
+  (:use #:cl
+        #:sila
+        #:rove))
+(in-package #:sila/tests/compiler)
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :sila)' in your Lisp.
 

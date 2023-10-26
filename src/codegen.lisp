@@ -23,103 +23,107 @@
 
 (defparameter *stack-depth* 0)
 
-(defun asm-inst (inst)
-  (list inst))
-
 (defun asm-push ()
   (incf *stack-depth*)
-  (asm-inst "push %rax"))
+  (format nil "push %rax"))
 
 (defun asm-pop (reg)
   (assert (> *stack-depth* 0))
   (decf *stack-depth*)
-  (asm-inst (format nil "pop %~a" reg)))
+  (format nil "pop %~a" reg))
 
-(defun generate-statement (node &optional (insts '()))
-  (ecase (ast-node-kind node)
-    (:compound-statement
-     (loop :for body := (ast-node-body node)
-             :then (setf node (ast-node-next body))
-           :until (null node)
-           :append (loop :for inst :in (generate-statement body)
-                         :collect inst)))
-    (:return-statement
-     (appendf insts (generate-code (ast-node-lhs node)))
-     (appendf insts (asm-inst "jmp .L.return"))
-     insts)
-    (:expression-statement
-     (generate-code (ast-node-lhs node)))))
+(defmacro do-vector-push-inst (generator insts)
+  `(loop :for inst :across ,generator :do (vector-push-extend inst ,insts)))
+
+(defun make-inst-array ()
+  "This currently just creates adjustable array with arbitrary size - for now -
+so that in case instruction array gets too large it is able to be resized.
+
+TODO(topi): Sure for shorter instruction arrays there might be some wasted space, but
+meh... let's fix it at some point."
+  (make-array 32 :adjustable t :fill-pointer 0))
+
+(defun generate-statement (node)
+  (let ((insts (make-inst-array)))
+    (ecase (ast-node-kind node)
+      (:compound-statement
+       (loop :for body := (ast-node-body node)
+               :then (setf node (ast-node-next body))
+             :until (null node)
+             :do (do-vector-push-inst (generate-statement body) insts)))
+      (:return-statement
+       (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)
+       (vector-push-extend (format nil "jmp .L.return") insts))
+      (:expression-statement
+       (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)))
+    insts))
 
 (defun generate-address (node)
   (if (eql (ast-node-kind node) :variable)
-      (asm-inst (format nil
-                        "lea ~a(%rbp), %rax"
-                        (object-offset (ast-node-variable node))))
+      (format nil "lea ~a(%rbp), %rax" (object-offset (ast-node-variable node)))
       (error "Expected lvalue, got: ~a" node)))
 
-(defun generate-code (node &optional (insts '()))
+(defun generate-code (node)
   "Recursively generate the x86-64 assembly code."
-  (let ((kind (ast-node-kind node)))
-    ;; TODO(topi): Lots of `appendf' here, maybe those could be cleaned
-    ;; somehow.
+  (let ((kind (ast-node-kind node))
+        (insts (make-inst-array)))
     (case kind
       (:number
-       (appendf insts (asm-inst (format nil "mov $~d, %rax"
-                                        (ast-node-value node))))
+       (vector-push-extend (format nil "mov $~d, %rax" (ast-node-value node)) insts)
        (return-from generate-code insts))
       (:neg
-       (appendf insts (generate-code (ast-node-lhs node)))
-       (appendf insts (asm-inst "neg %rax"))
+       (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)
+       (vector-push-extend (format nil "neg %rax") insts)
        (return-from generate-code insts))
       (:variable
-       (appendf insts (generate-address node))
-       (appendf insts (asm-inst "mov (%rax), %rax"))
+       (vector-push-extend (generate-address node) insts)
+       (vector-push-extend (format nil "mov (%rax), %rax") insts)
        (return-from generate-code insts))
       (:assign
-       (appendf insts (generate-address (ast-node-lhs node)))
-       (appendf insts (asm-push))
-       (appendf insts (generate-code (ast-node-rhs node)))
-       (appendf insts (asm-pop "rdi"))
-       (appendf insts (asm-inst "mov %rax, (%rdi)"))
+       (vector-push-extend (generate-address (ast-node-lhs node)) insts)
+       (vector-push-extend (asm-push) insts)
+       (do-vector-push-inst (generate-code (ast-node-rhs node)) insts)
+       (vector-push-extend (asm-pop "rdi") insts)
+       (vector-push-extend (format nil "mov %rax, (%rdi)") insts)
        (return-from generate-code insts))
       (otherwise (values)))
-    (appendf insts (generate-code (ast-node-rhs node)))
-    (appendf insts (asm-push))
-    (appendf insts (generate-code (ast-node-lhs node)))
-    (appendf insts (asm-pop "rdi"))
+    (do-vector-push-inst (generate-code (ast-node-rhs node)) insts)
+    (vector-push-extend (asm-push) insts)
+    (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)
+    (vector-push-extend (asm-pop "rdi") insts)
     (ecase kind
       (:add
-       (appendf insts (asm-inst "add %rdi, %rax")))
+       (vector-push-extend (format nil "add %rdi, %rax") insts))
       (:sub
-       (appendf insts (asm-inst "sub %rdi, %rax")))
+       (vector-push-extend (format nil "sub %rdi, %rax") insts))
       (:mul
-       (appendf insts (asm-inst "imul %rdi, %rax")))
+       (vector-push-extend (format nil "imul %rdi, %rax") insts))
       (:div
-       (appendf insts (asm-inst "cqo"))
-       (appendf insts (asm-inst "idiv %rdi, %rax")))
+       (vector-push-extend (format nil "cqo") insts)
+       (vector-push-extend (format nil "idiv %rdi, %rax") insts))
       ((:equal
         :not-equal
         :lesser-than
         :lesser-or-equal
         :greater-than
         :greater-or-equal)
-       (appendf insts (asm-inst "cmp %rdi, %rax"))
+       (vector-push-extend (format nil "cmp %rdi, %rax") insts)
        (case kind
          (:equal
-          (appendf insts (asm-inst "sete %al")))
+          (vector-push-extend (format nil "sete %al") insts))
          (:not-equal
-          (appendf insts (asm-inst "setne %al")))
+          (vector-push-extend (format nil "setne %al") insts))
          (:lesser-than
-          (appendf insts (asm-inst "setl %al")))
+          (vector-push-extend (format nil "setl %al") insts))
          (:lesser-or-equal
-          (appendf insts (asm-inst "setle %al")))
+          (vector-push-extend (format nil "setle %al") insts))
          (:greater-than
-          (appendf insts (asm-inst "setg %al")))
+          (vector-push-extend (format nil "setg %al") insts))
          (:greater-or-equal
-          (appendf insts (asm-inst "setge %al")))
+          (vector-push-extend (format nil "setge %al") insts))
          (otherwise (values)))
-       (appendf insts (asm-inst "movzb %al, %rax")))))
-  insts)
+       (vector-push-extend (format nil "movzb %al, %rax") insts)))
+    insts))
 
 (defun emit-code (src &key (stream nil) (indent 2) (indent-tabs t))
   "Emit assembly code from given source code. Currently emits only x86-64 and
@@ -150,7 +154,7 @@ only Linux is tested."
                 (format nil "~amov %rsp, %rbp" indent)
                 (format nil "~asub $~a, %rsp" indent (func-stack-size program))
                 ;; ASM Routine
-                (loop :for inst :in (generate-statement (func-body program))
+                (loop :for inst :across (generate-statement (func-body program))
                       :collect (format nil "~a~a" indent inst))
                 ;; Return label
                 ".L.return:"
