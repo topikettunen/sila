@@ -36,12 +36,7 @@
   `(loop :for inst :across ,generator :do (vector-push-extend inst ,insts)))
 
 (defun make-inst-array ()
-  "This currently just creates adjustable array with arbitrary size - for now -
-so that in case instruction array gets too large it is able to be resized.
-
-TODO(topi): Sure for shorter instruction arrays there might be some wasted space, but
-meh... let's fix it at some point."
-  (make-array 32 :adjustable t :fill-pointer 0))
+  (make-array 0 :adjustable t :fill-pointer 0))
 
 (defun generate-statement (node)
   (let ((insts (make-inst-array)))
