@@ -95,11 +95,15 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
   (parse-expression-statement-node tok))
 
 (defun parse-expression-statement-node (tok)
-  "expression-statement-node ::== expression-node ';'"
+  "expression-statement-node ::== expression-node? ';'"
+  ;; Empty statement, e.g. ';;; return 3;'
+  (when (string= (token-value tok) ";")
+    (return-from parse-expression-statement-node
+      (values (make-ast-node :kind :compound-statement)
+              (token-next tok))))
   (multiple-value-bind (node rest)
       (parse-expression-node tok)
-    (values (make-ast-node :kind :expression-statement
-                           :lhs node)
+    (values (make-ast-node :kind :expression-statement :lhs node)
             (token-next (skip-to-token ";" rest)))))
 
 (defun parse-expression-node (tok)

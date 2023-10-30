@@ -43,8 +43,8 @@
     (ecase (ast-node-kind node)
       (:compound-statement
        (loop for body = (ast-node-body node)
-               then (setf node (ast-node-next body))
-             until (null node)
+               then (setf body (ast-node-next body))
+             until (null body)
              do (do-vector-push-inst (generate-statement body) insts)))
       (:return-statement
        (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)
