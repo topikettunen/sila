@@ -22,6 +22,26 @@
   value
   next)
 
+(defun print-tokens (tokens)
+  "This is mainly used for printing long linked list of tokens, so that they look
+slighly better when printing it in REPL. Essentially it just prints the token
+like the default function, but it just removes the NEXT slot from it since it
+when printing token with NEXT tokens, in REPL, the structure drifts to left a
+lot which causes wrapping. Prints to STDERR."
+  (loop for tok = tokens
+          then (setf tok (token-next tok))
+        until (null tok)
+        do (format *error-output*
+                   "#S(TOKEN :KIND ~a~c:POSITION ~d~c:LENGTH ~d~c:VALUE ~a)~%"
+                   (token-kind tok)
+                   #\Tab
+                   (token-position tok)
+                   #\Tab
+                   (token-length tok)
+                   #\Tab
+                   (token-value tok)))
+  (values))
+
 (defun whitespacep (c)
   "Predicate for whitespace."
   (member c '(#\Space #\Tab #\Return #\Newline)))
@@ -75,8 +95,8 @@ return any keyword and just return the current position."
   (let* ((head (make-token))
          (cur head)
          (src-pos 0))
-    (loop :while (< src-pos (length src))
-          :do (let ((punct-pos (skip-to #'punctuatorp src src-pos)))
+    (loop while (< src-pos (length src))
+          do (let ((punct-pos (skip-to #'punctuatorp src src-pos)))
                 (cond
                   ;; Whitespace
                   ((whitespacep (char src src-pos))

@@ -33,7 +33,7 @@
   (format nil "pop %~a" reg))
 
 (defmacro do-vector-push-inst (generator insts)
-  `(loop :for inst :across ,generator :do (vector-push-extend inst ,insts)))
+  `(loop for inst across ,generator do (vector-push-extend inst ,insts)))
 
 (defun make-inst-array ()
   (make-array 0 :adjustable t :fill-pointer 0))
@@ -42,10 +42,10 @@
   (let ((insts (make-inst-array)))
     (ecase (ast-node-kind node)
       (:compound-statement
-       (loop :for body := (ast-node-body node)
-               :then (setf node (ast-node-next body))
-             :until (null node)
-             :do (do-vector-push-inst (generate-statement body) insts)))
+       (loop for body = (ast-node-body node)
+               then (setf node (ast-node-next body))
+             until (null node)
+             do (do-vector-push-inst (generate-statement body) insts)))
       (:return-statement
        (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)
        (vector-push-extend (format nil "jmp .L.return") insts))
@@ -149,8 +149,8 @@ only Linux is tested."
                 (format nil "~amov %rsp, %rbp" indent)
                 (format nil "~asub $~a, %rsp" indent (func-stack-size program))
                 ;; ASM Routine
-                (loop :for inst :across (generate-statement (func-body program))
-                      :collect (format nil "~a~a" indent inst))
+                (loop for inst across (generate-statement (func-body program))
+                      collect (format nil "~a~a" indent inst))
                 ;; Return label
                 ".L.return:"
                 ;; Epilogue

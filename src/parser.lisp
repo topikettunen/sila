@@ -68,8 +68,8 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
   "compound-statement-node ::== statement-node * '}'"
   (let* ((head (make-ast-node))
          (cur head))
-    (loop :until (string= (token-value tok) "}")
-          :do (multiple-value-bind (node rest)
+    (loop until (string= (token-value tok) "}")
+          do (multiple-value-bind (node rest)
                   (parse-statement-node tok)
                 (setf (ast-node-next cur) node)
                 (setf cur (ast-node-next cur))
@@ -129,8 +129,8 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
            (,descent-parser-name tok)
          (loop
            (cond
-             ,@(loop :for symbol :in comparison-symbols
-                     :collect `((string= (token-value rest) ,(car symbol))
+             ,@(loop for symbol in comparison-symbols
+                     collect `((string= (token-value rest) ,(car symbol))
                                 (multiple-value-bind (node2 rest2)
                                     (,descent-parser-name (token-next rest))
                                   (setf node (make-ast-node :kind ,(cdr symbol)
@@ -183,9 +183,9 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
          (parse-primary-node tok))))
 
 (defun find-local-var (name)
-  (loop :for obj := *local-variables*
-          :then (setf obj (object-next obj))
-        :until (null obj)
+  (loop for obj = *local-variables*
+          then (setf obj (object-next obj))
+        until (null obj)
         :do (when (string= name (object-name obj))
               (return-from find-local-var obj))))
 
@@ -216,21 +216,21 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
 
 (defun set-lvar-offsets (program)
   (let ((offset 0))
-     (loop :for obj := (func-locals program)
-             :then (setf obj (object-next obj))
-           :until (null obj)
-           :do (progn
-                 (incf offset 8)
-                 (setf (object-offset obj) (- offset))))
-     (setf (func-stack-size program) (align-to offset 16)))
+    (loop for obj = (func-locals program)
+            then (setf obj (object-next obj))
+          until (null obj)
+          do (progn
+                (incf offset 8)
+                (setf (object-offset obj) (- offset))))
+    (setf (func-stack-size program) (align-to offset 16)))
   (values))
 
 (defun parse-program (tok)
   "program ::== statement-node *"
   (let* ((head (make-ast-node))
          (cur head))
-    (loop :until (eql (token-kind tok) :eof)
-          :do (multiple-value-bind (node rest)
+    (loop until (eql (token-kind tok) :eof)
+          do (multiple-value-bind (node rest)
                   (parse-statement-node tok)
                 (setf (ast-node-next cur) node)
                 (setf cur (ast-node-next cur))
