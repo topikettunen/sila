@@ -26,6 +26,7 @@
     :return-statement
     :compound-statement ; { ... }
     :expression-statement
+    :if-expression
     :variable
     :number))
 
@@ -38,9 +39,14 @@
   variable ; Used if `kind' is :VARIABLE.
   lhs
   rhs
+  ;; If expression
+  cond
+  then
+  else
   next)
 
-(defvar *local-variables* nil)
+(defvar *local-variables* nil
+  "Global variables for holding local variable objects.")
 
 ;; TODO(topi): Set types for these slots.
 (defstruct object
@@ -60,26 +66,13 @@
   "Search for token which is VAL. Returns NIL when not found.
 
 TODO(topi): Probably should do some proper error handling if VAL isn't found."
-  (cond ((eql (token-kind tok) :eof) nil)
+  (cond ((eq (token-kind tok) :eof) nil)
         ((string= (token-value tok) val) tok)
         (t (skip-to-token val (token-next tok)))))
 
-(defun parse-compound-statement-node (tok)
-  "compound-statement-node ::== statement-node * '}'"
-  (let* ((head (make-ast-node))
-         (cur head))
-    (loop until (string= (token-value tok) "}")
-          do (multiple-value-bind (node rest)
-                  (parse-statement-node tok)
-                (setf (ast-node-next cur) node)
-                (setf cur (ast-node-next cur))
-                (setf tok rest)))
-    (values (make-ast-node :kind :compound-statement
-                           :body (ast-node-next head))
-            (token-next tok))))
-
 (defun parse-statement-node (tok)
   "statement-node ::== 'return' expression-node ';'
+                     | 'if' expression-node statement-node ('else' statement-node)?
                      | '{' compound-statement-node
                      | expression-statement-node"
   (when (string= (token-value tok) "return")
@@ -89,10 +82,45 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
         (values (make-ast-node :kind :return-statement
                                :lhs node)
                 (token-next (skip-to-token ";" rest))))))
+  (when (string= (token-value tok) "if")
+    (return-from parse-statement-node
+      (parse-cond-statement-node (token-next tok))))
   (when (string= (token-value tok) "{")
     (return-from parse-statement-node
       (parse-compound-statement-node (token-next tok))))
   (parse-expression-statement-node tok))
+
+(defun parse-cond-statement-node (tok)
+  ;; TOK passed in should be the expression after "if".
+  (multiple-value-bind (cond-stmt rest)
+      (parse-expression-node tok)
+    (multiple-value-bind (then-stmt rest2)
+        (parse-statement-node rest)
+      (let (else)
+        (when (string= (token-value rest2) "else")
+          (multiple-value-bind (else-stmt rest3)
+              (parse-statement-node (token-next rest2))
+            (setf rest2 rest3)
+            (setf else else-stmt)))
+        (values (make-ast-node :kind :if-expression
+                               :cond cond-stmt
+                               :then then-stmt
+                               :else else)
+                rest2)))))
+
+(defun parse-compound-statement-node (tok)
+  "compound-statement-node ::== statement-node * '}'"
+  (let* ((head (make-ast-node))
+         (cur head))
+    (loop until (string= (token-value tok) "}")
+          do (multiple-value-bind (node rest)
+                 (parse-statement-node tok)
+               (setf (ast-node-next cur) node)
+               (setf cur (ast-node-next cur))
+               (setf tok rest)))
+    (values (make-ast-node :kind :compound-statement
+                           :body (ast-node-next head))
+            (token-next tok))))
 
 (defun parse-expression-statement-node (tok)
   "expression-statement-node ::== expression-node? ';'"
@@ -195,10 +223,10 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
 
 (defun parse-primary-node (tok)
   "primary-node ::== '(' expression-node ')' | ident | number"
-  (cond ((eql (token-kind tok) :num)
+  (cond ((eq (token-kind tok) :num)
          (values (make-ast-node :kind :number :value (token-value tok))
                  (token-next tok)))
-        ((eql (token-kind tok) :ident)
+        ((eq (token-kind tok) :ident)
          (let* ((name (token-value tok))
                 (var (find-local-var name)))
            (when (null var)
@@ -233,12 +261,12 @@ TODO(topi): Probably should do some proper error handling if VAL isn't found."
   "program ::== statement-node *"
   (let* ((head (make-ast-node))
          (cur head))
-    (loop until (eql (token-kind tok) :eof)
+    (loop until (eq (token-kind tok) :eof)
           do (multiple-value-bind (node rest)
                   (parse-statement-node tok)
-                (setf (ast-node-next cur) node)
-                (setf cur (ast-node-next cur))
-                (setf tok rest)))
+               (setf (ast-node-next cur) node)
+               (setf cur (ast-node-next cur))
+               (setf tok rest)))
     (let ((program (make-func :body (ast-node-next head)
                               :locals *local-variables*)))
       (set-lvar-offsets program)

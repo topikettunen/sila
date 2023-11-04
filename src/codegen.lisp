@@ -14,6 +14,9 @@
                 #:ast-node-lhs
                 #:ast-node-rhs
                 #:ast-node-next
+                #:ast-node-cond
+                #:ast-node-then
+                #:ast-node-else
                 #:object-offset
                 #:func-body
                 #:func-stack-size
@@ -38,6 +41,9 @@
 (defun make-inst-array ()
   (make-array 0 :adjustable t :fill-pointer 0))
 
+(defparameter *cond-count* 0
+  "Global counter for conditional parsed in the code to be used in ASM labels.")
+
 (defun generate-statement (node)
   (let ((insts (make-inst-array)))
     (ecase (ast-node-kind node)
@@ -49,6 +55,17 @@
       (:return-statement
        (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)
        (vector-push-extend (format nil "jmp .L.return") insts))
+      (:if-expression
+       (incf *cond-count*)
+       (do-vector-push-inst (generate-code (ast-node-cond node)) insts)
+       (vector-push-extend (format nil "cmp $0, %rax") insts)
+       (vector-push-extend (format nil "jne .L.else.~d" *cond-count*) insts)
+       (do-vector-push-inst (generate-statement (ast-node-then node)) insts)
+       (vector-push-extend (format nil "jmp .L.end.~d" *cond-count*) insts)
+       (vector-push-extend (format nil ".L.else.~d:" *cond-count*) insts)
+       (when (ast-node-else node)
+         (do-vector-push-inst (generate-statement (ast-node-else node)) insts))
+       (vector-push-extend (format nil ".L.end.~d:" *cond-count*) insts))
       (:expression-statement
        (do-vector-push-inst (generate-code (ast-node-lhs node)) insts)))
     insts))
@@ -126,7 +143,8 @@ only Linux is tested."
   ;; Init environment.
   ;; TODO(topi): These should probably be set in some smarter place.
   (setf sila/parser::*local-variables* nil
-        sila/codegen::*stack-depth* 0)
+        *stack-depth* 0
+        *cond-count* 0)
   (let ((indent (if indent-tabs
                     #\Tab
                     (coerce (make-list indent
@@ -150,7 +168,11 @@ only Linux is tested."
                 (format nil "~asub $~a, %rsp" indent (func-stack-size program))
                 ;; ASM Routine
                 (loop for inst across (generate-statement (func-body program))
-                      collect (format nil "~a~a" indent inst))
+                      collect (if (string= (subseq inst 0 3) ".L.")
+                                  ;; If instruction is label (.L. prefix),
+                                  ;; don't indent it.
+                                  (format nil "~a" inst)
+                                  (format nil "~a~a" indent inst)))
                 ;; Return label
                 ".L.return:"
                 ;; Epilogue

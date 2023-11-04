@@ -57,4 +57,7 @@
   (ok (compile-program-and-compare-rc "{ a<-3; b<-5; return a+b; }" 8))
   (ok (compile-program-and-compare-rc "{ foo<-3; bar<-5; return foo+bar; }" 8))
   (ok (compile-program-and-compare-rc "{ foo2<-3; bar2<-5; return foo2+bar2; }" 8))
-  (ok (compile-program-and-compare-rc "{ 1; { 2; } return 3; }" 3)))
+  (ok (compile-program-and-compare-rc "{ 1; { 2; } return 3; }" 3))
+  (ok (compile-program-and-compare-rc "{ ;;;;; return 1; }" 1))
+  (ok (compile-program-and-compare-rc "{ if 0 { return 1; } return 2; }" 1))
+  (ok (compile-program-and-compare-rc "{ if 1 { return 1; } else { return 2; } }" 2)))

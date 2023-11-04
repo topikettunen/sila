@@ -75,6 +75,11 @@ lot which causes wrapping. Prints to STDERR."
            1)
           (t 0))))
 
+(defvar *sila-keywords*
+  #("return"
+    "if"
+    "else"))
+
 (defun keyword-lookup (input pos)
   "Check if keyword is found in the INPUT starting from POS to next whitespace.
 If found, return the keyword and the position to the next token. If not, don't
@@ -84,11 +89,11 @@ return any keyword and just return the current position."
     (when (null keyword-end)
       (return-from keyword-lookup (values nil pos)))
     (let ((keyword (subseq input pos keyword-end)))
-      (cond ((string= keyword "return")
-             (values keyword
-                     (skip-to #'(lambda (c) (not (whitespacep c)))
-                              input keyword-end)))
-            (t (values nil pos))))))
+      (if (find keyword *sila-keywords* :test #'string=)
+          (values keyword
+                  (skip-to #'(lambda (c) (not (whitespacep c)))
+                           input keyword-end))
+          (values nil pos)))))
 
 (defun tokenize (src)
   "Generate tokens from the given source code."
