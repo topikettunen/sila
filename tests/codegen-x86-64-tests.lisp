@@ -364,3 +364,26 @@ main:
   ret
 "))))
     (run-emit-code-tests tests)))
+
+(deftest test-cond-statements
+  (let ((tests '(("{ if 0 { return 1; } else { return 2; } }" . "  .globl main
+main:
+  push %rbp
+  mov %rsp, %rbp
+  sub $0, %rsp
+  mov $0, %rax
+  cmp $0, %rax
+  jne .L.else.1
+  mov $1, %rax
+  jmp .L.return
+  jmp .L.end.1
+.L.else.1:
+  mov $2, %rax
+  jmp .L.return
+.L.end.1:
+.L.return:
+  mov %rbp, %rsp
+  pop %rbp
+  ret
+"))))
+    (run-emit-code-tests tests)))
