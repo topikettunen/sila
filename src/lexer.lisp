@@ -1,7 +1,9 @@
 (defpackage #:sila/lexer
   (:use #:cl)
-  (:import-from #:alexandria
-                #:appendf))
+  (:export #:token-kind
+           #:token-value
+           #:token-next
+           #:tokenize))
 (in-package #:sila/lexer)
 
 (deftype kind ()
@@ -11,36 +13,16 @@
     :punct
     :keyword
     :num
-    :eof))
+    :eof
+    nil))
 
-;; TODO(topi): Set types for these slots.
-(defstruct token
-  "Structure for Sila tokens."
-  kind
-  position
-  length
-  value
-  next)
-
-(defun print-tokens (tokens)
-  "This is mainly used for printing long linked list of tokens, so that they look
-slighly better when printing it in REPL. Essentially it just prints the token
-like the default function, but it just removes the NEXT slot from it since it
-when printing token with NEXT tokens, in REPL, the structure drifts to left a
-lot which causes wrapping. Prints to STDERR."
-  (loop for tok = tokens
-          then (setf tok (token-next tok))
-        until (null tok)
-        do (format *error-output*
-                   "#S(TOKEN :KIND ~a~c:POSITION ~d~c:LENGTH ~d~c:VALUE ~a)~%"
-                   (token-kind tok)
-                   #\Tab
-                   (token-position tok)
-                   #\Tab
-                   (token-length tok)
-                   #\Tab
-                   (token-value tok)))
-  (values))
+(defstruct (token
+            (:copier nil))
+  (kind nil :type kind :read-only t)
+  (position 0 :type integer :read-only t)
+  (length 0 :type integer :read-only t)
+  (value "" :type string :read-only t)
+  (next nil :type t))
 
 (defun whitespacep (c)
   "Predicate for whitespace."
@@ -76,9 +58,7 @@ lot which causes wrapping. Prints to STDERR."
           (t 0))))
 
 (defvar *sila-keywords*
-  #("return"
-    "if"
-    "else"))
+  #("return" "if" "else"))
 
 (defun keyword-lookup (input pos)
   "Check if keyword is found in the INPUT starting from POS to next whitespace.
@@ -88,6 +68,7 @@ return any keyword and just return the current position."
     ;; Keyword not found
     (when (null keyword-end)
       (return-from keyword-lookup (values nil pos)))
+
     (let ((keyword (subseq input pos keyword-end)))
       (if (find keyword *sila-keywords* :test #'string=)
           (values keyword
@@ -95,96 +76,146 @@ return any keyword and just return the current position."
                            input keyword-end))
           (values nil pos)))))
 
+(defun gen-number-token (src src-pos)
+  "Generate token for NUMBER and return it and the SRC-POS to the next token in
+SRC."
+  (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
+         (token-len (if punct-pos
+                        (- punct-pos src-pos)
+                        ;; No more punctuators.
+                        (- (length src) src-pos)))
+         (token-val (trim-whitespace
+                     (subseq src src-pos (+ src-pos token-len)))))
+    ;; Idents starting with a letter will be catched with
+    ;; a diffenret conditional so if this is hit, ident
+    ;; starts with a number but contains letters, which
+    ;; isn't acceptable.
+    (unless (every #'digit-char-p token-val)
+      (error 'lexer-error
+             :lexer-input src
+             :error-msg "Ident can't start with a number."
+             :token-pos src-pos))
+
+    (cond (punct-pos
+           (setf src-pos punct-pos)
+           (when (and (char= (char src src-pos) #\<)
+                      (ignore-errors
+                       (char= (char src (1+ src-pos)) #\-)))
+             (error 'lexer-error
+                    :lexer-input src
+                    :error-msg "Can't assign to a number."
+                    :token-pos src-pos)))
+          (t
+           (setf src-pos (length src))))
+
+    (values (make-token :kind :num
+                        :value token-val
+                        :length (length token-val)
+                        :position src-pos)
+            src-pos)))
+
+(defun gen-ident-or-keyword-token (src src-pos)
+  "Generate IDENT or KEYWORD token and return it and the SRC-POS to the next
+token in SRC."
+  (multiple-value-bind (keyword next-token-pos)
+      (keyword-lookup src src-pos)
+    (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
+           (token-len (if keyword
+                          (length keyword)
+                          (if punct-pos
+                              (- punct-pos src-pos)
+                              ;; No more punctuators.
+                              (- (length src) src-pos))))
+           (token-val (if keyword
+                          keyword
+                          (trim-whitespace
+                           (subseq src src-pos (+ src-pos token-len))))))
+
+      (setf src-pos (if keyword
+                        next-token-pos
+                        (if punct-pos punct-pos (length src))))
+
+      (values (make-token :kind (if keyword :keyword :ident)
+                          :value token-val
+                          :length (length token-val)
+                          :position src-pos)
+              src-pos))))
+
+(defun gen-punct-token (src src-pos)
+  (let* ((punct-len (punct-length src src-pos))
+         (val (subseq src src-pos (+ src-pos punct-len))))
+    (incf src-pos punct-len)
+    (values (make-token :kind :punct
+                        :value val
+                        :position src-pos
+                        :length punct-len)
+            src-pos)))
+
+(defmacro gentoken (kind)
+  (let ((token-gen-fn (intern (format nil "GEN-~a-TOKEN" kind))))
+    `(multiple-value-bind (token pos)
+         (,token-gen-fn src src-pos)
+       (setf (token-next cur) token)
+       (setf cur (token-next cur))
+       (setf src-pos pos))))
+
 (defun tokenize (src)
   "Generate tokens from the given source code."
   (let* ((head (make-token))
          (cur head)
          (src-pos 0))
     (loop while (< src-pos (length src))
-          do (let ((punct-pos (skip-to #'punctuatorp src src-pos)))
-                (cond
-                  ;; Whitespace
-                  ((whitespacep (char src src-pos))
-                   (incf src-pos))
-                  ;; Number
-                  ((digit-char-p (char src src-pos))
-                   (let* ((token-len (if punct-pos
-                                         (- punct-pos src-pos)
-                                         ;; No more punctuators.
-                                         (- (length src) src-pos)))
-                          (token-val (trim-whitespace
-                                      (subseq src src-pos (+ src-pos token-len)))))
-                     ;; Idents starting with a letter will be catched with
-                     ;; a diffenret conditional so if this is hit, ident
-                     ;; starts with a number but contains letters, which
-                     ;; isn't acceptable.
-                     (unless (every #'digit-char-p token-val)
-                       (error 'lexer-error
-                              :lexer-input src
-                              :error-msg "Ident can't start with a number."
-                              :token-pos src-pos))
-                     (setf (token-next cur)
-                           (make-token :kind :num
-                                       :value token-val
-                                       :length (length token-val)
-                                       :position src-pos))
-                     (setf cur (token-next cur))
-                     (cond (punct-pos
-                            (setf src-pos punct-pos)
-                            (when (and (char= (char src src-pos) #\<)
-                                       (ignore-errors
-                                        (char= (char src (1+ src-pos)) #\-)))
-                              (error 'lexer-error
-                                     :lexer-input src
-                                     :error-msg "Can't assign to a number."
-                                     :token-pos src-pos)))
-                           (t
-                            (setf src-pos (length src))))))
-                  ;; Ident or keyword
-                  ((alpha-char-p (char src src-pos))
-                   (multiple-value-bind (keyword next-token-pos)
-                       (keyword-lookup src src-pos)
-                     (let* ((token-len (if keyword
-                                           (length keyword)
-                                           (if punct-pos
-                                               (- punct-pos src-pos)
-                                               ;; No more punctuators.
-                                               (- (length src) src-pos))))
-                            (token-val (if keyword
-                                           keyword
-                                           (trim-whitespace
-                                            (subseq src src-pos (+ src-pos token-len))))))
-                       (setf (token-next cur)
-                             (make-token :kind (if keyword :keyword :ident)
-                                         :value token-val
-                                         :length (length token-val)
-                                         :position src-pos))
-                       (setf cur (token-next cur))
-                       (setf src-pos (if keyword
-                                         next-token-pos
-                                         (if punct-pos punct-pos (length src)))))))
-                  ;; Punctuator
-                  ((punctuatorp (char src src-pos))
-                   (let* ((punct-len (punct-length src src-pos))
-                          (val (subseq src src-pos (+ src-pos punct-len))))
-                     (setf (token-next cur)
-                           (make-token :kind :punct
-                                       :value val
-                                       :position src-pos
-                                       :length punct-len))
-                     (setf cur (token-next cur))
-                     (incf src-pos punct-len)))
-                  (t
-                   (error 'lexer-error
-                          :lexer-input src
-                          :error-msg "Invalid token."
-                          :token-pos src-pos)))))
+          do (cond
+               ;; Skip whitespace
+               ((whitespacep (char src src-pos))
+                (incf src-pos))
+
+               ;; Number
+               ((digit-char-p (char src src-pos))
+                (gentoken number))
+
+               ;; Ident or keyword
+               ((alpha-char-p (char src src-pos))
+                (gentoken ident-or-keyword))
+
+               ;; Punctuator
+               ((punctuatorp (char src src-pos))
+                (gentoken punct))
+
+               (t
+                (error 'lexer-error
+                       :lexer-input src
+                       :error-msg "Invalid token."
+                       :token-pos src-pos))))
     ;; No more tokens.
     (setf (token-next cur) (make-token :kind :eof :position src-pos))
     (setf cur (token-next cur))
+
     (token-next head)))
 
+(defun print-tokens (tokens)
+  "This is mainly used for printing long linked list of tokens, so that they look
+slighly better when printing it in REPL. Essentially it just prints the token
+like the default function, but it just removes the NEXT slot from it since it
+when printing token with NEXT tokens, in REPL, the structure drifts to left a
+lot which causes wrapping. Prints to STDERR."
+  (loop :for tok := tokens
+          :then (setf tok (token-next tok))
+        :until (null tok)
+        :do (format *error-output*
+                    "#S(TOKEN :KIND ~a~c:POSITION ~d~c:LENGTH ~d~c:VALUE ~a)~%"
+                    (token-kind tok)
+                    #\Tab
+                    (token-position tok)
+                    #\Tab
+                    (token-length tok)
+                    #\Tab
+                    (token-value tok)))
+  (values))
+
+;;;
 ;;; Lexer error handling
+;;;
 
 (defun format-lexer-error (stream pos input msg)
   "Print lexer error in format like:
