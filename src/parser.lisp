@@ -27,6 +27,11 @@
            #:ast-node-binop-rhs
            #:ast-node-expression-p
            #:ast-node-expression-expr
+           #:ast-node-for-p
+           #:ast-node-for-init
+           #:ast-node-for-cond
+           #:ast-node-for-inc
+           #:ast-node-for-body
            #:*local-variables*
            #:object-offset
            #:func-body
@@ -132,6 +137,17 @@
 (defmethod next-node ((node ast-node-expression))
   (ast-node-expression-next node))
 
+(defstruct (ast-node-for
+             (:include ast-node)
+             (:copier nil))
+  (init (util:required 'init) :type t :read-only t)
+  (inc (util:required 'inc) :type t :read-only t)
+  (cond (util:required 'cond) :type t :read-only t)
+  (body (util:required 'body) :type t :read-only t))
+
+(defmethod next-node ((node ast-node-for))
+  (ast-node-for-next node))
+
 (defvar *local-variables* nil
   "Global variable for holding local variable objects.")
 
@@ -158,6 +174,9 @@
     ("if"
      (parse-cond-statement-node (lex:token-next tok)))
 
+    ("for"
+     (parse-loop-statement-node (lex:token-next tok)))
+
     ("{"
      (parse-compound-statement-node (lex:token-next tok)))
 
@@ -165,23 +184,61 @@
      (parse-expression-statement-node tok))))
 
 (defun parse-cond-statement-node (tok)
-  ;; TOK passed in should be the expression after "if".
-  (multiple-value-bind (expr-node rest)
-      (parse-expression-node tok)
-    (multiple-value-bind (then-node rest2)
-        (parse-statement-node rest)
+  ;; TOK passed in should be the token after "if".
+  (let (expr then else)
+    (multiple-value-bind (expr-node rest)
+        (parse-expression-node tok)
+      (setf expr expr-node
+            tok rest))
 
-      (let (else)
-        (when (string= (lex:token-value rest2) "else")
-          (multiple-value-bind (else-node rest3)
-              (parse-statement-node (lex:token-next rest2))
-            (setf rest2 rest3)
-            (setf else else-node)))
+    (multiple-value-bind (then-node rest)
+        (parse-statement-node tok)
+      (setf then then-node
+            tok rest))
 
-        (values (make-ast-node-cond :expr expr-node
-                                    :then then-node
-                                    :else else)
-                rest2)))))
+    (when (string= (lex:token-value tok) "else")
+      (multiple-value-bind (else-node rest)
+          (parse-statement-node (lex:token-next tok))
+        (setf else else-node
+              tok rest)))
+
+    (values (make-ast-node-cond :expr expr
+                                :then then
+                                :else else)
+            tok)))
+
+(defun parse-loop-statement-node (tok)
+  ;; TOK passed in should be the token after "for"
+  (let (init cond inc body)
+    (multiple-value-bind (init-node rest)
+        (parse-expression-statement-node tok)
+      (setf init init-node
+            tok rest))
+
+    (unless (string= (lex:token-value tok) ";")
+      (multiple-value-bind (cond-node rest)
+          (parse-expression-node tok)
+        (setf cond cond-node
+              tok rest)))
+    (setf tok (skip-to-token ";" tok))
+
+    (unless (string= (lex:token-value (lex:token-next tok)) "{")
+      (multiple-value-bind (inc-node rest)
+          (parse-expression-node (lex:token-next tok))
+        (setf inc inc-node
+              tok rest)))
+    (setf tok (skip-to-token "{" tok))
+
+    (multiple-value-bind (body-node rest)
+        (parse-statement-node tok)
+      (setf body body-node
+            tok rest))
+
+    (values (make-ast-node-for :init init
+                               :cond cond
+                               :inc inc
+                               :body body)
+            tok)))
 
 (defun parse-compound-statement-node (tok)
   (let* ((head (make-ast-node))
@@ -214,18 +271,19 @@
 
 (defun parse-assign-node (tok)
   (let (node)
-    (multiple-value-bind (var rest)
+    (multiple-value-bind (eql-node rest)
         (parse-equality-node tok)
-      (setf node var)
+      (setf node eql-node
+            tok rest))
 
-      (when (string= (lex:token-value rest) "<-")
-        (multiple-value-bind (expr rest2)
-            (parse-assign-node (lex:token-next rest))
-          (setf node (make-ast-node-assign :var var
-                                           :expr expr))
-          (setf rest rest2)))
+    (when (string= (lex:token-value tok) "<-")
+      (multiple-value-bind (expr-node rest)
+          (parse-assign-node (lex:token-next tok))
+        (setf node (make-ast-node-assign :var node
+                                         :expr expr-node)
+              tok rest)))
 
-      (values node rest))))
+    (values node tok)))
 
 (defmacro define-binop-parser (name &key descent-parser comparison-symbols)
   "Macro for generating new binary operator parser rules."

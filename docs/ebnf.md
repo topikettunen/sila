@@ -3,6 +3,7 @@
 ```
 statement-node := "return" expression-node ";"
                 | "if" expression-node statement-node ("else" statement-node)?
+                | "for" "expression-statement-node expression-node? ";" expression-node? ")" statement-node
                 | "{" compound-statement-node
                 | expression-statement-node
 

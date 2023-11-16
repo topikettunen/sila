@@ -60,4 +60,6 @@
   (ok (compile-program-and-compare-rc "{ 1; { 2; } return 3; }" 3))
   (ok (compile-program-and-compare-rc "{ ;;;;; return 1; }" 1))
   (ok (compile-program-and-compare-rc "{ if 0 { return 1; } return 2; }" 1))
-  (ok (compile-program-and-compare-rc "{ if 1 { return 1; } else { return 2; } }" 2)))
+  (ok (compile-program-and-compare-rc "{ if 1 { return 1; } else { return 2; } }" 2))
+  (ok (compile-program-and-compare-rc "{ for ;; { return 3; } return 5; }" 3))
+  (ok (compile-program-and-compare-rc "{ i<-0; j<-0;for i<-0; i<=10; i<-i+1 {j <- i+j;} return j; }" 55)))

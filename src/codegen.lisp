@@ -23,8 +23,8 @@
 (defun make-inst-array ()
   (make-array 0 :adjustable t :fill-pointer 0))
 
-(defparameter *cond-count* 0
-  "Global counter for conditional parsed in the code to be used in ASM labels.")
+(defparameter *label-count* 0
+  "Global counter for to be used in ASM labels.")
 
 (defun generate-statement (node)
   (let ((insts (make-inst-array)))
@@ -37,23 +37,54 @@
        insts)
 
       ((parser:ast-node-return-p node)
-       (do-vector-push-inst (generate-expression (parser:ast-node-return-expr node)) insts)
+       (do-vector-push-inst (generate-expression
+                             (parser:ast-node-return-expr node)) insts)
        (vector-push-extend (format nil "jmp .L.return") insts)
        insts)
 
       ((parser:ast-node-cond-p node)
-       (incf *cond-count*)
-       (do-vector-push-inst (generate-expression (parser:ast-node-cond-expr node)) insts)
-       (vector-push-extend (format nil "cmp $0, %rax") insts)
-       (vector-push-extend (format nil "jne .L.else.~d" *cond-count*) insts)
-       (do-vector-push-inst (generate-statement
-                             (parser:ast-node-cond-then node)) insts)
-       (vector-push-extend (format nil "jmp .L.end.~d" *cond-count*) insts)
-       (vector-push-extend (format nil ".L.else.~d:" *cond-count*) insts)
-       (when (parser:ast-node-cond-else node)
+       (incf *label-count*)
+
+       (let ((count *label-count*))
+         (do-vector-push-inst (generate-expression
+                               (parser:ast-node-cond-expr node)) insts)
+         (vector-push-extend (format nil "cmp $0, %rax") insts)
+         (vector-push-extend (format nil "jne .L.else.~d" count) insts)
+
          (do-vector-push-inst (generate-statement
-                               (parser:ast-node-cond-else node)) insts))
-       (vector-push-extend (format nil ".L.end.~d:" *cond-count*) insts)
+                               (parser:ast-node-cond-then node)) insts)
+         (vector-push-extend (format nil "jmp .L.end.~d" count) insts)
+
+         (vector-push-extend (format nil ".L.else.~d:" count) insts)
+         (when (parser:ast-node-cond-else node)
+           (do-vector-push-inst (generate-statement
+                                 (parser:ast-node-cond-else node)) insts))
+
+         (vector-push-extend (format nil ".L.end.~d:" count) insts))
+       insts)
+
+      ((parser:ast-node-for-p node)
+       (incf *label-count*)
+
+       (let ((count *label-count*))
+         (do-vector-push-inst (generate-statement
+                               (parser:ast-node-for-init node)) insts)
+         (vector-push-extend (format nil ".L.begin.~d:" count) insts)
+
+         (when (parser:ast-node-for-cond node)
+           (do-vector-push-inst (generate-expression
+                                 (parser:ast-node-for-cond node)) insts)
+           (vector-push-extend (format nil "cmp $0, %rax") insts)
+           (vector-push-extend (format nil "je .L.end.~d" count) insts))
+
+         (do-vector-push-inst (generate-statement
+                               (parser:ast-node-for-body node)) insts)
+
+         (when (parser:ast-node-for-inc node)
+           (do-vector-push-inst (generate-expression (parser:ast-node-for-inc node)) insts))
+
+         (vector-push-extend (format nil "jmp .L.begin.~d" count) insts)
+         (vector-push-extend (format nil ".L.end.~d:" count) insts))
        insts)
 
       ((parser:ast-node-expression-p node)
@@ -144,16 +175,14 @@
          (vector-push-extend (format nil "movzb %al, %rax") insts))))
     insts))
 
-(defun init-environment ()
-  (setf parser:*local-variables* nil
-        *stack-depth* 0
-        *cond-count* 0)
-  (values))
-
 (defun emit-code (src &key (stream nil) (indent 2) (indent-tabs t))
   "Emit assembly code from given source code. Currently emits only x86-64 and
 only Linux is tested."
-  (init-environment)
+  ;; Init environment
+  (setf parser:*local-variables* nil
+        *stack-depth* 0
+        *label-count* 0)
+
   (let ((indent (if indent-tabs
                     #\Tab
                     (coerce (make-list indent

@@ -58,7 +58,7 @@
           (t 0))))
 
 (defvar *sila-keywords*
-  #("return" "if" "else"))
+  #("return" "if" "else" "for"))
 
 (defun keyword-lookup (input pos)
   "Check if keyword is found in the INPUT starting from POS to next whitespace.
