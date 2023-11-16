@@ -51,7 +51,7 @@
                (string= "!=" punct)
                (string= "<=" punct)
                (string= ">=" punct)
-               (string= "<-" punct))
+               (string= ":=" punct))
            2)
           ((punctuatorp (char input pos))
            1)

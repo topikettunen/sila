@@ -276,7 +276,7 @@
       (setf node eql-node
             tok rest))
 
-    (when (string= (lex:token-value tok) "<-")
+    (when (string= (lex:token-value tok) ":=")
       (multiple-value-bind (expr-node rest)
           (parse-assign-node (lex:token-next tok))
         (setf node (make-ast-node-assign :var node
