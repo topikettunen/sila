@@ -387,3 +387,85 @@ main:
   ret
 "))))
     (run-emit-code-tests tests)))
+
+(deftest test-loops
+  (let ((tests '(("{ for ;; { return 3; } return 5; }" . "  .globl main
+main:
+  push %rbp
+  mov %rsp, %rbp
+  sub $0, %rsp
+.L.begin.1:
+  mov $3, %rax
+  jmp .L.return
+  jmp .L.begin.1
+.L.end.1:
+  mov $5, %rax
+  jmp .L.return
+.L.return:
+  mov %rbp, %rsp
+  pop %rbp
+  ret
+")
+                 ("{ i:=0; j:=0;for i:=0; i<=10; i:=i+1 {j := i+j;} return j; }" . "  .globl main
+main:
+  push %rbp
+  mov %rsp, %rbp
+  sub $16, %rsp
+  lea -16(%rbp), %rax
+  push %rax
+  mov $0, %rax
+  pop %rdi
+  mov %rax, (%rdi)
+  lea -8(%rbp), %rax
+  push %rax
+  mov $0, %rax
+  pop %rdi
+  mov %rax, (%rdi)
+  lea -16(%rbp), %rax
+  push %rax
+  mov $0, %rax
+  pop %rdi
+  mov %rax, (%rdi)
+.L.begin.1:
+  mov $10, %rax
+  push %rax
+  lea -16(%rbp), %rax
+  mov (%rax), %rax
+  pop %rdi
+  cmp %rdi, %rax
+  setle %al
+  movzb %al, %rax
+  cmp $0, %rax
+  je .L.end.1
+  lea -8(%rbp), %rax
+  push %rax
+  lea -8(%rbp), %rax
+  mov (%rax), %rax
+  push %rax
+  lea -16(%rbp), %rax
+  mov (%rax), %rax
+  pop %rdi
+  add %rdi, %rax
+  pop %rdi
+  mov %rax, (%rdi)
+  lea -16(%rbp), %rax
+  push %rax
+  mov $1, %rax
+  push %rax
+  lea -16(%rbp), %rax
+  mov (%rax), %rax
+  pop %rdi
+  add %rdi, %rax
+  pop %rdi
+  mov %rax, (%rdi)
+  jmp .L.begin.1
+.L.end.1:
+  lea -8(%rbp), %rax
+  mov (%rax), %rax
+  jmp .L.return
+.L.return:
+  mov %rbp, %rsp
+  pop %rbp
+  ret
+"))))
+    (run-emit-code-tests tests)))
