@@ -1,5 +1,8 @@
 # EBNF
 
+> **Note**: EBNF will be changed during the early phases of development, this
+> is not final.
+
 ```
 statement-node := "return" expression-node ";"
                 | "if" expression-node statement-node ("else" statement-node)?
