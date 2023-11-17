@@ -6,16 +6,19 @@
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :sila)' in your Lisp.
 
-(defun run-emit-code-tests (testcases)
-  (dolist (test testcases)
-    (ok (string-equal (sila/codegen:emit-code (car test) :indent 2 :indent-tabs nil) (cdr test))
-        (format nil "Expect to be equal: ~%~a~%=>~a"
-                `(sila/codegen:emit-code ,(car test) :indent 2 :indent-tabs nil)
-                (cdr test))))
-  (values))
+(defmacro testing-codegen (desc testcases)
+  `(testing ,desc
+     ,@(loop :for test :in testcases
+             :collect `(ok (string= (sila/codegen:emit-code ,(car test)
+                                                            :indent 2
+                                                            :indent-tabs nil)
+                                    ,(cdr test))
+                           ,(car test)))))
 
-(deftest test-emit-x86-64-integer
-  (let ((tests '(("{ return 0; }" . "  .globl main
+(deftest test-codegen-x86-64
+  (testing-codegen
+   "Integer"
+   (("{ return 0; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -27,7 +30,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return 42; }" . "  .globl main
+    ("{ return 42; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -38,11 +41,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-emit-x86-64-add-sub
-  (let ((tests '(("{ return 5+20-4; }" . "  .globl main
+  (testing-codegen
+   "Add and subtraction"
+   (("{ return 5+20-4; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -62,7 +65,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return    5   +  20  -  4   ; }" . "  .globl main
+    ("{ return    5   +  20  -  4   ; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -81,11 +84,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-emit-x86-64-div-mul-parens
-  (let ((tests '(("{ return 2 / (1 + 1) * 8; }" . "  .globl main
+  (testing-codegen
+   "Division and multiplication"
+   (("{ return 2 / (1 + 1) * 8; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -109,11 +112,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-emit-x86-64-unary
-  (let ((tests '(("{ return - -10; }" . "  .globl main
+  (testing-codegen
+   "Unary"
+   (("{ return - -10; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -127,7 +130,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return -10+20; }" . "  .globl main
+    ("{ return -10+20; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -144,7 +147,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return - - -10; }" . "  .globl main
+    ("{ return - - -10; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -158,11 +161,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-emit-x86-64-comparisons
-  (let ((tests '(("{ return 1==1; }" . "  .globl main
+  (testing-codegen
+   "Comparison"
+   (("{ return 1==1; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -180,7 +183,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return 1>=1; }" . "  .globl main
+    ("{ return 1>=1; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -198,7 +201,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return 1<=1; }" . "  .globl main
+    ("{ return 1<=1; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -216,7 +219,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return 1<1; }" . "  .globl main
+    ("{ return 1<1; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -234,7 +237,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ return 1>1; }" . "  .globl main
+    ("{ return 1>1; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -251,11 +254,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-emit-multiple-statements
-  (let ((tests '(("{ return 1;2;3; }" . "  .globl main
+  (testing-codegen
+   "Multiple statements"
+   (("{ return 1;2;3; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -269,7 +272,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ 1;return 2;3; }" . "  .globl main
+    ("{ 1;return 2;3; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -283,7 +286,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ 1;2;return 3; }" . "  .globl main
+    ("{ 1;2;return 3; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -296,11 +299,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-emit-x86-64-variables
-  (let ((tests '(("{ a:=8;return a; }" . "  .globl main
+  (testing-codegen
+   "Variables"
+   (("{ a:=8;return a; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -318,7 +321,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ foo:=5;bar:=8;return foo+bar; }" . "  .globl main
+    ("{ foo:=5;bar:=8;return foo+bar; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -345,11 +348,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-emit-nested-compound-statements
-  (let ((tests '(("{ 1; { 2; } return 3; }" . "  .globl main
+  (testing-codegen
+   "Block"
+   (("{ 1; { 2; } return 3; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -362,11 +365,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-cond-statements
-  (let ((tests '(("{ if 0 { return 1; } else { return 2; } }" . "  .globl main
+  (testing-codegen
+   "Conditional"
+   (("{ if 0 { return 1; } else { return 2; } }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -385,11 +388,11 @@ main:
   mov %rbp, %rsp
   pop %rbp
   ret
-"))))
-    (run-emit-code-tests tests)))
+")))
 
-(deftest test-loops
-  (let ((tests '(("{ for ;; { return 3; } return 5; }" . "  .globl main
+  (testing-codegen
+   "For loop"
+   (("{ for ;; { return 3; } return 5; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -406,7 +409,7 @@ main:
   pop %rbp
   ret
 ")
-                 ("{ i:=0; j:=0;for i:=0; i<=10; i:=i+1 {j := i+j;} return j; }" . "  .globl main
+    ("{ i:=0; j:=0;for i:=0; i<=10; i:=i+1 {j := i+j;} return j; }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
@@ -468,4 +471,3 @@ main:
   pop %rbp
   ret
 "))))
-    (run-emit-code-tests tests)))
