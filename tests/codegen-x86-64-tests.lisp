@@ -411,6 +411,7 @@ main:
   mov $2, %rax
   jmp .L.return
 .L.end.1:
+  nop
 .L.return:
   mov %rbp, %rsp
   pop %rbp

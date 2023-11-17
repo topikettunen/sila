@@ -66,7 +66,10 @@
                                    (parser:ast-node-cond-else node)) insts)
              (vector-push-extend (format nil "nop") insts))
 
-         (vector-push-extend (format nil ".L.end.~d:" count) insts))
+         (vector-push-extend (format nil ".L.end.~d:" count) insts)
+
+         (unless (parser:next-node node)
+           (vector-push-extend (format nil "nop") insts)))
        insts)
 
       ((parser:ast-node-for-p node)
@@ -91,7 +94,10 @@
                                  (parser:ast-node-for-inc node)) insts))
 
          (vector-push-extend (format nil "jmp .L.begin.~d" count) insts)
-         (vector-push-extend (format nil ".L.end.~d:" count) insts))
+         (vector-push-extend (format nil ".L.end.~d:" count) insts)
+
+         (unless (parser:next-node node)
+           (vector-push-extend (format nil "nop") insts)))
        insts)
 
       ((parser:ast-node-loop-p node)
@@ -104,7 +110,10 @@
                                (parser:ast-node-loop-body node)) insts)
 
          (vector-push-extend (format nil "jmp .L.begin.~d" count) insts)
-         (vector-push-extend (format nil ".L.end.~d:" count) insts))
+         (vector-push-extend (format nil ".L.end.~d:" count) insts)
+
+         (unless (parser:next-node node)
+           (vector-push-extend (format nil "nop") insts)))
        insts)
 
       ((parser:ast-node-expression-p node)
