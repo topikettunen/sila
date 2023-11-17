@@ -58,13 +58,14 @@
           (t 0))))
 
 (defvar *sila-keywords*
-  #("return" "if" "else" "for"))
+  #("return" "if" "else" "for" "loop" "break"))
 
 (defun keyword-lookup (input pos)
   "Check if keyword is found in the INPUT starting from POS to next whitespace.
 If found, return the keyword and the position to the next token. If not, don't
 return any keyword and just return the current position."
   (let ((keyword-end (skip-to #'whitespacep input pos)))
+
     ;; Keyword not found
     (when (null keyword-end)
       (return-from keyword-lookup (values nil pos)))
@@ -86,6 +87,7 @@ SRC."
                         (- (length src) src-pos)))
          (token-val (trim-whitespace
                      (subseq src src-pos (+ src-pos token-len)))))
+
     ;; Idents starting with a letter will be catched with
     ;; a diffenret conditional so if this is hit, ident
     ;; starts with a number but contains letters, which
@@ -96,7 +98,7 @@ SRC."
              :error-msg "Ident can't start with a number."
              :token-pos src-pos))
 
-    (cond (punct-pos
+    (cond ((not (null punct-pos))
            (setf src-pos punct-pos)
            (when (and (char= (char src src-pos) #\<)
                       (ignore-errors
@@ -119,6 +121,7 @@ SRC."
 token in SRC."
   (multiple-value-bind (keyword next-token-pos)
       (keyword-lookup src src-pos)
+
     (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
            (token-len (if keyword
                           (length keyword)
@@ -144,49 +147,52 @@ token in SRC."
 (defun gen-punct-token (src src-pos)
   (let* ((punct-len (punct-length src src-pos))
          (val (subseq src src-pos (+ src-pos punct-len))))
+
     (incf src-pos punct-len)
+
     (values (make-token :kind :punct
                         :value val
                         :position src-pos
                         :length punct-len)
             src-pos)))
 
-(defmacro gentoken (kind)
-  (let ((token-gen-fn (intern (format nil "GEN-~a-TOKEN" kind))))
-    `(multiple-value-bind (token pos)
-         (,token-gen-fn src src-pos)
-       (setf (token-next cur) token)
-       (setf cur (token-next cur))
-       (setf src-pos pos))))
-
 (defun tokenize (src)
   "Generate tokens from the given source code."
   (let* ((head (make-token))
          (cur head)
          (src-pos 0))
-    (loop while (< src-pos (length src))
-          do (cond
-               ;; Skip whitespace
-               ((whitespacep (char src src-pos))
-                (incf src-pos))
 
-               ;; Number
-               ((digit-char-p (char src src-pos))
-                (gentoken number))
+    (macrolet ((gentoken (kind)
+                 (let ((token-gen-fn (intern (format nil "GEN-~a-TOKEN" kind))))
+                   `(multiple-value-bind (token pos)
+                        (,token-gen-fn src src-pos)
+                      (setf (token-next cur) token)
+                      (setf cur (token-next cur))
+                      (setf src-pos pos)))))
 
-               ;; Ident or keyword
-               ((alpha-char-p (char src src-pos))
-                (gentoken ident-or-keyword))
+      (loop :while (< src-pos (length src))
+            :do (cond
+                  ;; Skip whitespace
+                  ((whitespacep (char src src-pos))
+                   (incf src-pos))
 
-               ;; Punctuator
-               ((punctuatorp (char src src-pos))
-                (gentoken punct))
+                  ;; Number
+                  ((digit-char-p (char src src-pos))
+                   (gentoken number))
 
-               (t
-                (error 'lexer-error
-                       :lexer-input src
-                       :error-msg "Invalid token."
-                       :token-pos src-pos))))
+                  ;; Ident or keyword
+                  ((alpha-char-p (char src src-pos))
+                   (gentoken ident-or-keyword))
+
+                  ;; Punctuator
+                  ((punctuatorp (char src src-pos))
+                   (gentoken punct))
+
+                  (t
+                   (error 'lexer-error
+                          :lexer-input src
+                          :error-msg "Invalid token."
+                          :token-pos src-pos)))))
     ;; No more tokens.
     (setf (token-next cur) (make-token :kind :eof :position src-pos))
     (setf cur (token-next cur))

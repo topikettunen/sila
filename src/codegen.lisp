@@ -42,6 +42,11 @@
        (vector-push-extend (format nil "jmp .L.return") insts)
        insts)
 
+      ((parser:ast-node-break-p node)
+       (vector-push-extend (format nil "jmp .L.end.~d"
+                                   (parser:ast-node-break-depth node)) insts)
+       insts)
+
       ((parser:ast-node-cond-p node)
        (incf *label-count*)
 
@@ -49,16 +54,17 @@
          (do-vector-push-inst (generate-expression
                                (parser:ast-node-cond-expr node)) insts)
          (vector-push-extend (format nil "cmp $0, %rax") insts)
-         (vector-push-extend (format nil "jne .L.else.~d" count) insts)
+         (vector-push-extend (format nil "je .L.else.~d" count) insts)
 
          (do-vector-push-inst (generate-statement
                                (parser:ast-node-cond-then node)) insts)
          (vector-push-extend (format nil "jmp .L.end.~d" count) insts)
 
          (vector-push-extend (format nil ".L.else.~d:" count) insts)
-         (when (parser:ast-node-cond-else node)
-           (do-vector-push-inst (generate-statement
-                                 (parser:ast-node-cond-else node)) insts))
+         (if (parser:ast-node-cond-else node)
+             (do-vector-push-inst (generate-statement
+                                   (parser:ast-node-cond-else node)) insts)
+             (vector-push-extend (format nil "nop") insts))
 
          (vector-push-extend (format nil ".L.end.~d:" count) insts))
        insts)
@@ -81,7 +87,21 @@
                                (parser:ast-node-for-body node)) insts)
 
          (when (parser:ast-node-for-inc node)
-           (do-vector-push-inst (generate-expression (parser:ast-node-for-inc node)) insts))
+           (do-vector-push-inst (generate-expression
+                                 (parser:ast-node-for-inc node)) insts))
+
+         (vector-push-extend (format nil "jmp .L.begin.~d" count) insts)
+         (vector-push-extend (format nil ".L.end.~d:" count) insts))
+       insts)
+
+      ((parser:ast-node-loop-p node)
+       (incf *label-count*)
+
+       (let ((count *label-count*))
+         (vector-push-extend (format nil ".L.begin.~d:" count) insts)
+
+         (do-vector-push-inst (generate-statement
+                               (parser:ast-node-loop-body node)) insts)
 
          (vector-push-extend (format nil "jmp .L.begin.~d" count) insts)
          (vector-push-extend (format nil ".L.end.~d:" count) insts))
@@ -109,7 +129,8 @@
        insts)
 
       ((parser:ast-node-negate-p node)
-       (do-vector-push-inst (generate-expression (parser:ast-node-negate-value node)) insts)
+       (do-vector-push-inst (generate-expression
+                             (parser:ast-node-negate-value node)) insts)
        (vector-push-extend (format nil "neg %rax") insts)
        insts)
 
@@ -122,7 +143,8 @@
        (vector-push-extend (generate-address
                             (parser:ast-node-assign-var node)) insts)
        (vector-push-extend (asm-push) insts)
-       (do-vector-push-inst (generate-expression (parser:ast-node-assign-expr node)) insts)
+       (do-vector-push-inst (generate-expression
+                             (parser:ast-node-assign-expr node)) insts)
        (vector-push-extend (asm-pop "rdi") insts)
        (vector-push-extend (format nil "mov %rax, (%rdi)") insts)
        insts)
@@ -132,9 +154,11 @@
 
 (defun generate-binop-expression (node)
   (let ((insts (make-inst-array)))
-    (do-vector-push-inst (generate-expression (parser:ast-node-binop-rhs node)) insts)
+    (do-vector-push-inst (generate-expression
+                          (parser:ast-node-binop-rhs node)) insts)
     (vector-push-extend (asm-push) insts)
-    (do-vector-push-inst (generate-expression (parser:ast-node-binop-lhs node)) insts)
+    (do-vector-push-inst (generate-expression
+                          (parser:ast-node-binop-lhs node)) insts)
     (vector-push-extend (asm-pop "rdi") insts)
     (let ((kind (parser:ast-node-binop-kind node)))
       (ecase kind
@@ -161,16 +185,22 @@
          (case kind
            (:equal
             (vector-push-extend (format nil "sete %al") insts))
+
            (:not-equal
             (vector-push-extend (format nil "setne %al") insts))
+
            (:lesser-than
             (vector-push-extend (format nil "setl %al") insts))
+
            (:lesser-or-equal
             (vector-push-extend (format nil "setle %al") insts))
+
            (:greater-than
             (vector-push-extend (format nil "setg %al") insts))
+
            (:greater-or-equal
             (vector-push-extend (format nil "setge %al") insts))
+
            (otherwise (values)))
          (vector-push-extend (format nil "movzb %al, %rax") insts))))
     insts))
@@ -188,7 +218,9 @@ only Linux is tested."
                     (coerce (make-list indent
                                        :initial-element #\Space)
                             'string))))
+
     (let ((program (parser:parse-program (lex:tokenize src))))
+
       ;; TODO(topi): these instructions probably should be collected to some
       ;; structure so they can be divided in to sections more easily when the
       ;; programs become more complex.
@@ -198,12 +230,16 @@ only Linux is tested."
                (list
                 ;; ASM Directive
                 (format nil "~a.globl main" indent)
+
                 ;; Main Label
                 "main:"
+
                 ;; Prologue
                 (format nil "~apush %rbp" indent)
                 (format nil "~amov %rsp, %rbp" indent)
-                (format nil "~asub $~a, %rsp" indent (parser:func-stack-size program))
+                (format nil "~asub $~a, %rsp" indent
+                        (parser:func-stack-size program))
+
                 ;; ASM Routine
                 (loop :for inst
                         :across (generate-statement (parser:func-body program))
@@ -212,10 +248,13 @@ only Linux is tested."
                                    ;; don't indent it.
                                    (format nil "~a" inst)
                                    (format nil "~a~a" indent inst)))
+
                 ;; Return label
                 ".L.return:"
+
                 ;; Epilogue
                 (format nil "~amov %rbp, %rsp" indent)
                 (format nil "~apop %rbp" indent)
+
                 ;; Return
                 (format nil "~aret" indent)))))))

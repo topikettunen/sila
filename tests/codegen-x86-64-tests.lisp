@@ -369,14 +369,41 @@ main:
 
   (testing-codegen
    "Conditional"
-   (("{ if 0 { return 1; } else { return 2; } }" . "  .globl main
+   (("{ if 1 == 0 { return 1; } return 0; }" . "  .globl main
+main:
+  push %rbp
+  mov %rsp, %rbp
+  sub $0, %rsp
+  mov $0, %rax
+  push %rax
+  mov $1, %rax
+  pop %rdi
+  cmp %rdi, %rax
+  sete %al
+  movzb %al, %rax
+  cmp $0, %rax
+  je .L.else.1
+  mov $1, %rax
+  jmp .L.return
+  jmp .L.end.1
+.L.else.1:
+  nop
+.L.end.1:
+  mov $0, %rax
+  jmp .L.return
+.L.return:
+  mov %rbp, %rsp
+  pop %rbp
+  ret
+")
+    ("{ if 0 { return 1; } else { return 2; } }" . "  .globl main
 main:
   push %rbp
   mov %rsp, %rbp
   sub $0, %rsp
   mov $0, %rax
   cmp $0, %rax
-  jne .L.else.1
+  je .L.else.1
   mov $1, %rax
   jmp .L.return
   jmp .L.end.1

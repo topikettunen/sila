@@ -32,6 +32,10 @@
            #:ast-node-for-cond
            #:ast-node-for-inc
            #:ast-node-for-body
+           #:ast-node-loop-p
+           #:ast-node-loop-body
+           #:ast-node-break-p
+           #:ast-node-break-depth
            #:*local-variables*
            #:object-offset
            #:func-body
@@ -148,6 +152,22 @@
 (defmethod next-node ((node ast-node-for))
   (ast-node-for-next node))
 
+(defstruct (ast-node-loop
+             (:include ast-node)
+             (:copier nil))
+  (body (util:required 'body) :type t :read-only t))
+
+(defmethod next-node ((node ast-node-loop))
+  (ast-node-loop-next node))
+
+(defstruct (ast-node-break
+             (:include ast-node)
+             (:copier nil))
+  (depth (util:required 'depth) :type integer :read-only t))
+
+(defmethod next-node ((node ast-node-break))
+  (ast-node-break-next node))
+
 (defvar *local-variables* nil
   "Global variable for holding local variable objects.")
 
@@ -163,6 +183,9 @@
   (locals (util:required 'body) :type t :read-only t)
   (stack-size 0 :type integer))
 
+(defvar *break-depth* 0
+  "Depth counter for BREAK keyword to know from what level it should break out.")
+
 (defun parse-statement-node (tok)
   (alexandria:switch ((lex:token-value tok) :test #'string=)
     ("return"
@@ -175,7 +198,14 @@
      (parse-cond-statement-node (lex:token-next tok)))
 
     ("for"
+     (parse-for-statement-node (lex:token-next tok)))
+
+    ("loop"
      (parse-loop-statement-node (lex:token-next tok)))
+
+    ("break"
+     (values (make-ast-node-break :depth *break-depth*)
+             (lex:token-next (skip-to-token ";" tok))))
 
     ("{"
      (parse-compound-statement-node (lex:token-next tok)))
@@ -207,7 +237,7 @@
                                 :else else)
             tok)))
 
-(defun parse-loop-statement-node (tok)
+(defun parse-for-statement-node (tok)
   ;; TOK passed in should be the token after "for"
   (let (init cond inc body)
     (multiple-value-bind (init-node rest)
@@ -222,6 +252,9 @@
               tok rest)))
     (setf tok (skip-to-token ";" tok))
 
+    ;; Entering "for" scope.
+    (incf *break-depth*)
+
     (unless (string= (lex:token-value (lex:token-next tok)) "{")
       (multiple-value-bind (inc-node rest)
           (parse-expression-node (lex:token-next tok))
@@ -234,11 +267,32 @@
       (setf body body-node
             tok rest))
 
+    ;; Left "for" scope.
+    (decf *break-depth*)
+
     (values (make-ast-node-for :init init
                                :cond cond
                                :inc inc
                                :body body)
             tok)))
+
+(defun parse-loop-statement-node (tok)
+  ;; TOK passed in should be the opening brace of the block after the "loop"
+  ;; keyword.
+  ;; TODO(topi): Add proper error handling.
+  (assert (string= (lex:token-value tok) "{"))
+
+  ;; Entering "loop" scope.
+  (incf *break-depth*)
+
+  (multiple-value-bind (body rest)
+      (parse-statement-node tok)
+
+    ;; Leaving "loop" scope.
+    (decf *break-depth*)
+
+    (values (make-ast-node-loop :body body)
+            rest)))
 
 (defun parse-compound-statement-node (tok)
   (let* ((head (make-ast-node))
@@ -296,15 +350,15 @@
            (setf node lhs)
            (loop
             (cond
-              ,@(loop for symbol in comparison-symbols
-                      collect `((string= (lex:token-value rest) ,(car symbol))
-                                (multiple-value-bind (rhs rest2)
-                                    (,descent-parser-name (lex:token-next rest))
-                                  (setf node (make-ast-node-binop
-                                              :kind ,(cdr symbol)
-                                              :lhs node
-                                              :rhs rhs))
-                                  (setf rest rest2))))
+              ,@(loop :for symbol :in comparison-symbols
+                      :collect `((string= (lex:token-value rest) ,(car symbol))
+                                 (multiple-value-bind (rhs rest2)
+                                     (,descent-parser-name (lex:token-next rest))
+                                   (setf node (make-ast-node-binop
+                                               :kind ,(cdr symbol)
+                                               :lhs node
+                                               :rhs rhs))
+                                   (setf rest rest2))))
               (t
                (return-from ,parser-name
                  (values node rest))))))))))
@@ -355,10 +409,12 @@
     ((eq (lex:token-kind tok) :ident)
      (let* ((name (lex:token-value tok))
             (var (find-local-var name)))
+
        (when (null var)
          (setf var (make-object :name name :next *local-variables*))
          ;; New object should be in front of the list.
          (setf *local-variables* var))
+
        (values (make-ast-node-variable :object var)
                (lex:token-next tok))))
 
