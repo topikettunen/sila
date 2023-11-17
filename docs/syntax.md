@@ -2,7 +2,7 @@
 
 > **Note**: syntax written in here is mainly for designing what the syntax I
 > would like to have. This means that it isn't necessarily implemented in code
-> as so. Also, this syntax might change at least in the early phases of
+> as so yet. Also, this syntax might change at least in the early phases of
 > development at will.
 
 ## Comments
@@ -25,7 +25,7 @@ Where depending on the `<cond>`, `a` would result to either `"TRUE"` or `"FALSE"
 Or similarly:
 
 ```
-a : [Int] := for i in 1..10 { i }
+a : [Int] := for i in 1..10 collect { i }
 ```
 
 Where `a` would equal to an array of integers from 1 to below 10.
