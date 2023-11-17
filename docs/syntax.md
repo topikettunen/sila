@@ -61,8 +61,6 @@ var <ident> : <type> := <value>
 
 ## Operators
 
-- Postfix `?` (e.g. `zero?`) for boolean checks
-
 - `not`, like `!`
 
 - Unary `+` and `-`, e.g. `+10` and `-10`
@@ -170,7 +168,7 @@ for k, v in <map> {}
 ```
 
 ```
-for x, y in (x, y) {}
+for x, y in <array of tuples> {}
 ```
 
 ### `defer`
