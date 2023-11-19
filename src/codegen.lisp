@@ -121,45 +121,43 @@
                              (parser:ast-node-expression-expr node)) insts)
        insts))))
 
-(defun generate-address (node)
-  (if (parser:ast-node-variable-p node)
-      (format nil "lea ~d(%rbp), %rax"
-              (parser:object-offset (parser:ast-node-variable-object node)))
-      (error "Expected lvalue, got: ~a" node)))
-
 (defun generate-expression (node)
   "Recursively generate the x86-64 assembly code."
-  (let ((insts (make-inst-array)))
-    (cond
-      ((parser:ast-node-integer-literal-p node)
-       (vector-push-extend
-        (format nil "mov $~d, %rax"
-                (parser:ast-node-integer-literal-value node)) insts)
-       insts)
+  (flet ((lea (node)
+           "Load effective address"
+           (format nil "lea ~d(%rbp), %rax"
+                   (parser:object-offset
+                    (parser:ast-node-variable-object node)))))
+    (let ((insts (make-inst-array)))
+      (cond
+        ((parser:ast-node-integer-literal-p node)
+         (vector-push-extend
+          (format nil "mov $~d, %rax"
+                  (parser:ast-node-integer-literal-value node)) insts)
+         insts)
 
-      ((parser:ast-node-negate-p node)
-       (do-vector-push-inst (generate-expression
-                             (parser:ast-node-negate-value node)) insts)
-       (vector-push-extend (format nil "neg %rax") insts)
-       insts)
+        ((parser:ast-node-negate-p node)
+         (do-vector-push-inst (generate-expression
+                               (parser:ast-node-negate-value node)) insts)
+         (vector-push-extend (format nil "neg %rax") insts)
+         insts)
 
-      ((parser:ast-node-variable-p node)
-       (vector-push-extend (generate-address node) insts)
-       (vector-push-extend (format nil "mov (%rax), %rax") insts)
-       insts)
+        ((parser:ast-node-variable-p node)
+         (vector-push-extend (lea node) insts)
+         (vector-push-extend (format nil "mov (%rax), %rax") insts)
+         insts)
 
-      ((parser:ast-node-assign-p node)
-       (vector-push-extend (generate-address
-                            (parser:ast-node-assign-var node)) insts)
-       (vector-push-extend (asm-push) insts)
-       (do-vector-push-inst (generate-expression
-                             (parser:ast-node-assign-expr node)) insts)
-       (vector-push-extend (asm-pop "rdi") insts)
-       (vector-push-extend (format nil "mov %rax, (%rdi)") insts)
-       insts)
+        ((parser:ast-node-assign-p node)
+         (vector-push-extend (lea (parser:ast-node-assign-var node)) insts)
+         (vector-push-extend (asm-push) insts)
+         (do-vector-push-inst (generate-expression
+                               (parser:ast-node-assign-expr node)) insts)
+         (vector-push-extend (asm-pop "rdi") insts)
+         (vector-push-extend (format nil "mov %rax, (%rdi)") insts)
+         insts)
 
-      ((parser:ast-node-binop-p node)
-       (generate-binop-expression node)))))
+        ((parser:ast-node-binop-p node)
+         (generate-binop-expression node))))))
 
 (defun generate-binop-expression (node)
   (let ((insts (make-inst-array)))
