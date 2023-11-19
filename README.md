@@ -21,6 +21,10 @@ Sila is a programming language that, like all new languages, has somewhat
 Language is implemented by a single person, mainly for educational and
 research purposes. Very much work in progress. Fully developed in the open.
 
+I'm writing about the development of this language to my blog when something
+interesting gets implemented. If you're interested about it, follow me
+[here](https://topikettunen.com/blog/tag/sila).
+
 ## Bugs
 
 Yes.
