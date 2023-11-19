@@ -183,9 +183,6 @@
   (locals (util:required 'body) :type t :read-only t)
   (stack-size 0 :type integer))
 
-(defvar *break-depth* 0
-  "Depth counter for BREAK keyword to know from what level it should break out.")
-
 (defun parse-statement-node (tok)
   (alexandria:switch ((lex:token-value tok) :test #'string=)
     ("return"
@@ -236,6 +233,9 @@
                                 :then then
                                 :else else)
             tok)))
+
+(defvar *break-depth* 0
+  "Depth counter for BREAK keyword to know from what level it should break out.")
 
 (defun parse-for-statement-node (tok)
   ;; TOK passed in should be the token after "for"
@@ -288,7 +288,7 @@
   (multiple-value-bind (body rest)
       (parse-statement-node tok)
 
-    ;; Leaving "loop" scope.
+    ;; Left "loop" scope.
     (decf *break-depth*)
 
     (values (make-ast-node-loop :body body)
@@ -400,46 +400,67 @@
      (parse-primary-node tok))))
 
 (defun parse-primary-node (tok)
-  (cond
-    ((eq (lex:token-kind tok) :num)
-     (values (make-ast-node-integer-literal
-              :value (parse-integer (lex:token-value tok)))
-             (lex:token-next tok)))
+  (flet ((find-local-var (name)
+           (loop :for obj := *local-variables*
+                   :then (setf obj (object-next obj))
+                 :until (null obj)
+                 :do (when (string= name (object-name obj))
+                       (return-from find-local-var obj)))))
+    (cond
+      ((eq (lex:token-kind tok) :num)
+       (values (make-ast-node-integer-literal
+                :value (parse-integer (lex:token-value tok)))
+               (lex:token-next tok)))
 
-    ((eq (lex:token-kind tok) :ident)
-     (let* ((name (lex:token-value tok))
-            (var (find-local-var name)))
+      ((eq (lex:token-kind tok) :ident)
+       (let* ((name (lex:token-value tok))
+              (var (find-local-var name)))
 
-       (when (null var)
-         (setf var (make-object :name name :next *local-variables*))
-         ;; New object should be in front of the list.
-         (setf *local-variables* var))
+         (when (null var)
+           (setf var (make-object :name name :next *local-variables*))
+           ;; New object should be in front of the list.
+           (setf *local-variables* var))
 
-       (values (make-ast-node-variable :object var)
-               (lex:token-next tok))))
+         (values (make-ast-node-variable :object var)
+                 (lex:token-next tok))))
 
-    ((string= (lex:token-value tok) "(")
-     (multiple-value-bind (node rest)
-         (parse-expression-node (lex:token-next tok))
-       (values node (lex:token-next (skip-to-token ")" rest)))))
+      ((string= (lex:token-value tok) "(")
+       (multiple-value-bind (node rest)
+           (parse-expression-node (lex:token-next tok))
+         (values node (lex:token-next (skip-to-token ")" rest)))))
 
-    (t (error "Unexpected token value: ~a" tok))))
+      (t (error "Unexpected token value: ~a" tok)))))
 
 (defun parse-program (tok)
-  (let* ((head (make-ast-node))
-         (cur head))
+  (labels ((align-to (n align)
+             "Round N to the nearest multiple of ALIGN."
+             (* (ceiling n align) align))
 
-    (loop :until (eq (lex:token-kind tok) :eof)
-          :do (multiple-value-bind (node rest)
-                  (parse-statement-node tok)
-                (setf (ast-node-next cur) node)
-                (setf cur (ast-node-next cur))
-                (setf tok rest)))
+           (set-lvar-offsets (program)
+             (let ((offset 0))
+               (loop :for obj := (func-locals program)
+                       :then (setf obj (object-next obj))
+                     :until (null obj)
+                     :do (progn
+                           (incf offset 8)
+                           (setf (object-offset obj) (- offset))))
+               (setf (func-stack-size program) (align-to offset 16)))
+             (values)))
 
-    (let ((program (make-func :body (ast-node-next head)
-                              :locals *local-variables*)))
-      (set-lvar-offsets program)
-      program)))
+    (let* ((head (make-ast-node))
+           (cur head))
+
+      (loop :until (eq (lex:token-kind tok) :eof)
+            :do (multiple-value-bind (node rest)
+                    (parse-statement-node tok)
+                  (setf (ast-node-next cur) node)
+                  (setf cur (ast-node-next cur))
+                  (setf tok rest)))
+
+      (let ((program (make-func :body (ast-node-next head)
+                                :locals *local-variables*)))
+        (set-lvar-offsets program)
+        program))))
 
 ;;;
 ;;; Parser Utilities
@@ -452,25 +473,3 @@
         :until (eq (lex:token-kind cur) :eof)
         :do (when (string= (lex:token-value cur) val)
               (return-from skip-to-token cur))))
-
-(defun find-local-var (name)
-  (loop :for obj := *local-variables*
-          :then (setf obj (object-next obj))
-        :until (null obj)
-        :do (when (string= name (object-name obj))
-              (return-from find-local-var obj))))
-
-(defun align-to (n align)
-  "Round N to the nearest multiple of ALIGN."
-  (* (ceiling n align) align))
-
-(defun set-lvar-offsets (program)
-  (let ((offset 0))
-    (loop :for obj := (func-locals program)
-            :then (setf obj (object-next obj))
-          :until (null obj)
-          :do (progn
-                (incf offset 8)
-                (setf (object-offset obj) (- offset))))
-    (setf (func-stack-size program) (align-to offset 16)))
-  (values))

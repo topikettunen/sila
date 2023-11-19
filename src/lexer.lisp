@@ -88,8 +88,8 @@ SRC."
          (token-val (trim-whitespace
                      (subseq src src-pos (+ src-pos token-len)))))
 
-    ;; Idents starting with a letter will be catched with
-    ;; a diffenret conditional so if this is hit, ident
+    ;; Idents starting with a letter will be caught with
+    ;; a different conditional so if this is hit, ident
     ;; starts with a number but contains letters, which
     ;; isn't acceptable.
     (unless (every #'digit-char-p token-val)
@@ -123,20 +123,17 @@ token in SRC."
       (keyword-lookup src src-pos)
 
     (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
-           (token-len (if keyword
-                          (length keyword)
-                          (if punct-pos
-                              (- punct-pos src-pos)
-                              ;; No more punctuators.
-                              (- (length src) src-pos))))
+           (token-len (cond (keyword (length keyword))
+                            (punct-pos (- punct-pos src-pos))
+                            (t (- (length src) src-pos))))
            (token-val (if keyword
                           keyword
                           (trim-whitespace
                            (subseq src src-pos (+ src-pos token-len))))))
 
-      (setf src-pos (if keyword
-                        next-token-pos
-                        (if punct-pos punct-pos (length src))))
+      (setf src-pos (cond (keyword next-token-pos)
+                          (punct-pos punct-pos)
+                          (t (length src))))
 
       (values (make-token :kind (if keyword :keyword :ident)
                           :value token-val
