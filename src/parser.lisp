@@ -180,7 +180,7 @@
 (defstruct (func
             (:copier nil))
   (body (util:required 'body) :type t :read-only t)
-  (locals (util:required 'body) :type t :read-only t)
+  (locals (util:required 'locals) :type t :read-only t)
   (stack-size 0 :type integer))
 
 (defun parse-statement-node (tok)
