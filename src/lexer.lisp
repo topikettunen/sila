@@ -60,23 +60,6 @@
 (defvar *sila-keywords*
   #("return" "if" "else" "for" "loop" "break"))
 
-(defun keyword-lookup (input pos)
-  "Check if keyword is found in the INPUT starting from POS to next whitespace.
-If found, return the keyword and the position to the next token. If not, don't
-return any keyword and just return the current position."
-  (let ((keyword-end (skip-to #'whitespacep input pos)))
-
-    ;; Keyword not found
-    (when (null keyword-end)
-      (return-from keyword-lookup (values nil pos)))
-
-    (let ((keyword (subseq input pos keyword-end)))
-      (if (find keyword *sila-keywords* :test #'string=)
-          (values keyword
-                  (skip-to #'(lambda (c) (not (whitespacep c)))
-                           input keyword-end))
-          (values nil pos)))))
-
 (defun gen-number-token (src src-pos)
   "Generate token for NUMBER and return it and the SRC-POS to the next token in
 SRC."
@@ -119,27 +102,39 @@ SRC."
 (defun gen-ident-or-keyword-token (src src-pos)
   "Generate IDENT or KEYWORD token and return it and the SRC-POS to the next
 token in SRC."
-  (multiple-value-bind (keyword next-token-pos)
-      (keyword-lookup src src-pos)
+  (flet ((keyword-lookup (input pos)
+           (let ((keyword-end (skip-to #'whitespacep input pos)))
+             ;; Keyword not found
+             (when (null keyword-end)
+               (return-from keyword-lookup (values nil pos)))
+             (let ((keyword (subseq input pos keyword-end)))
+               (if (find keyword *sila-keywords* :test #'string=)
+                   (values keyword
+                           (skip-to #'(lambda (c) (not (whitespacep c)))
+                                    input keyword-end))
+                   (values nil pos))))))
 
-    (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
-           (token-len (cond (keyword (length keyword))
-                            (punct-pos (- punct-pos src-pos))
-                            (t (- (length src) src-pos))))
-           (token-val (if keyword
-                          keyword
-                          (trim-whitespace
-                           (subseq src src-pos (+ src-pos token-len))))))
+    (multiple-value-bind (keyword next-token-pos)
+        (keyword-lookup src src-pos)
 
-      (setf src-pos (cond (keyword next-token-pos)
-                          (punct-pos punct-pos)
-                          (t (length src))))
+      (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
+             (token-len (cond (keyword (length keyword))
+                              (punct-pos (- punct-pos src-pos))
+                              (t (- (length src) src-pos))))
+             (token-val (if keyword
+                            keyword
+                            (trim-whitespace
+                             (subseq src src-pos (+ src-pos token-len))))))
 
-      (values (make-token :kind (if keyword :keyword :ident)
-                          :value token-val
-                          :length (length token-val)
-                          :position src-pos)
-              src-pos))))
+        (setf src-pos (cond (keyword next-token-pos)
+                            (punct-pos punct-pos)
+                            (t (length src))))
+
+        (values (make-token :kind (if keyword :keyword :ident)
+                            :value token-val
+                            :length (length token-val)
+                            :position src-pos)
+                src-pos)))))
 
 (defun gen-punct-token (src src-pos)
   (let* ((punct-len (punct-length src src-pos))
