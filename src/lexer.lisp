@@ -1,5 +1,7 @@
 (defpackage #:sila/lexer
   (:use #:cl)
+  (:local-nicknames
+   (#:util #:serapeum/bundle))
   (:export #:token-kind
            #:token-value
            #:token-next
@@ -13,12 +15,11 @@
     :punct
     :keyword
     :num
-    :eof
-    nil))
+    :eof))
 
 (defstruct (token
             (:copier nil))
-  (kind nil :type kind :read-only t)
+  (kind (util:required-argument 'kind) :type (or null kind) :read-only t)
   (position 0 :type integer :read-only t)
   (length 0 :type integer :read-only t)
   (value "" :type string :read-only t)
@@ -150,7 +151,7 @@ token in SRC."
 
 (defun tokenize (src)
   "Generate tokens from the given source code."
-  (let* ((head (make-token))
+  (let* ((head (make-token :kind nil))
          (cur head)
          (src-pos 0))
 

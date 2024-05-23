@@ -2,7 +2,7 @@
   (:use #:cl)
   (:local-nicknames
    (#:lex #:sila/lexer)
-   (#:util #:sila/utilities))
+   (#:util #:serapeum/bundle))
   (:export #:ast-node-block-p
            #:ast-node-block-body
            #:ast-node-block-next
@@ -53,7 +53,7 @@
 (defstruct (ast-node-block
             (:include ast-node)
             (:copier nil))
-  (body (util:required 'body) :type t :read-only t))
+  (body (util:required-argument 'body) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-block))
   (ast-node-block-next node))
@@ -61,7 +61,7 @@
 (defstruct (ast-node-negate
             (:include ast-node)
             (:copier nil))
-  (value (util:required 'value) :type t :read-only t))
+  (value (util:required-argument 'value) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-negate))
   (ast-node-negate-next node))
@@ -69,7 +69,7 @@
 (defstruct (ast-node-integer-literal
             (:include ast-node)
             (:copier nil))
-  (value (util:required 'value) :type integer :read-only t))
+  (value (util:required-argument 'value) :type integer :read-only t))
 
 (defmethod next-node ((node ast-node-integer-literal))
   (ast-node-integer-literal-next node))
@@ -77,7 +77,7 @@
 (defstruct (ast-node-variable
             (:include ast-node)
             (:copier nil))
-  (object (util:required 'object) :type object :read-only t))
+  (object (util:required-argument 'object) :type object :read-only t))
 
 (defmethod next-node ((node ast-node-variable))
   (ast-node-variable-next node))
@@ -85,7 +85,7 @@
 (defstruct (ast-node-return
             (:include ast-node)
             (:copier nil))
-  (expr (util:required 'expr) :type t :read-only t))
+  (expr (util:required-argument 'expr) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-return))
   (ast-node-return-next node))
@@ -93,8 +93,8 @@
 (defstruct (ast-node-assign
             (:include ast-node)
             (:copier nil))
-  (var (util:required 'var) :type ast-node-variable :read-only t)
-  (expr (util:required 'expr) :type t :read-only t))
+  (var (util:required-argument 'var) :type ast-node-variable :read-only t)
+  (expr (util:required-argument 'expr) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-assign))
   (ast-node-assign-next node))
@@ -102,9 +102,9 @@
 (defstruct (ast-node-cond
             (:include ast-node)
             (:copier nil))
-  (expr (util:required 'expr) :type t :read-only t)
-  (then (util:required 'then) :type t :read-only t)
-  (else (util:required 'else) :type t :read-only t))
+  (expr (util:required-argument 'expr) :type t :read-only t)
+  (then (util:required-argument 'then) :type t :read-only t)
+  (else (util:required-argument 'else) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-cond))
   (ast-node-cond-next node))
@@ -125,9 +125,9 @@
 (defstruct (ast-node-binop
             (:include ast-node)
             (:copier nil))
-  (kind (util:required 'kind) :type binop-kind :read-only t)
-  (lhs (util:required 'lhs) :type t :read-only t)
-  (rhs (util:required 'rhs) :type t :read-only t))
+  (kind (util:required-argument 'kind) :type binop-kind :read-only t)
+  (lhs (util:required-argument 'lhs) :type t :read-only t)
+  (rhs (util:required-argument 'rhs) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-binop))
   (ast-node-binop-next node))
@@ -136,7 +136,7 @@
 (defstruct (ast-node-expression
             (:include ast-node)
             (:copier nil))
-  (expr (util:required 'expr) :type t :read-only t))
+  (expr (util:required-argument 'expr) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-expression))
   (ast-node-expression-next node))
@@ -144,10 +144,10 @@
 (defstruct (ast-node-for
              (:include ast-node)
              (:copier nil))
-  (init (util:required 'init) :type t :read-only t)
-  (inc (util:required 'inc) :type t :read-only t)
-  (cond (util:required 'cond) :type t :read-only t)
-  (body (util:required 'body) :type t :read-only t))
+  (init (util:required-argument 'init) :type t :read-only t)
+  (inc (util:required-argument 'inc) :type t :read-only t)
+  (cond (util:required-argument 'cond) :type t :read-only t)
+  (body (util:required-argument 'body) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-for))
   (ast-node-for-next node))
@@ -155,7 +155,7 @@
 (defstruct (ast-node-loop
              (:include ast-node)
              (:copier nil))
-  (body (util:required 'body) :type t :read-only t))
+  (body (util:required-argument 'body) :type t :read-only t))
 
 (defmethod next-node ((node ast-node-loop))
   (ast-node-loop-next node))
@@ -163,7 +163,7 @@
 (defstruct (ast-node-break
              (:include ast-node)
              (:copier nil))
-  (depth (util:required 'depth) :type integer :read-only t))
+  (depth (util:required-argument 'depth) :type integer :read-only t))
 
 (defmethod next-node ((node ast-node-break))
   (ast-node-break-next node))
@@ -173,14 +173,14 @@
 
 (defstruct (object
             (:copier nil))
-  (name (util:required 'name) :type string :read-only t)
+  (name (util:required-argument 'name) :type string :read-only t)
   (offset 0 :type integer)
   (next nil :type t))
 
 (defstruct (func
             (:copier nil))
-  (body (util:required 'body) :type t :read-only t)
-  (locals (util:required 'locals) :type t :read-only t)
+  (body (util:required-argument 'body) :type t :read-only t)
+  (locals (util:required-argument 'locals) :type t :read-only t)
   (stack-size 0 :type integer))
 
 (defun parse-statement-node (tok)

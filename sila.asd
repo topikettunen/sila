@@ -2,11 +2,10 @@
   :version "0.0.1"
   :author "Topi Kettunen <topi@topikettunen.com>"
   :license "MIT"
-  :depends-on ("alexandria")
+  :depends-on ("serapeum")
   :components ((:module "src"
                 :components
-                ((:file "utilities")
-                 (:file "lexer")
+                ((:file "lexer")
                  (:file "parser")
                  (:file "codegen")
                  (:file "sila"))))
