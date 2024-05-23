@@ -39,7 +39,7 @@
       ((parser:ast-node-return-p node)
        (do-vector-push-inst (generate-expression
                              (parser:ast-node-return-expr node)) insts)
-       (vector-push-extend (format nil "jmp .L.return") insts)
+       (vector-push-extend "jmp .L.return" insts)
        insts)
 
       ((parser:ast-node-break-p node)
@@ -53,7 +53,7 @@
        (let ((count *label-count*))
          (do-vector-push-inst (generate-expression
                                (parser:ast-node-cond-expr node)) insts)
-         (vector-push-extend (format nil "cmp $0, %rax") insts)
+         (vector-push-extend "cmp $0, %rax" insts)
          (vector-push-extend (format nil "je .L.else.~d" count) insts)
 
          (do-vector-push-inst (generate-statement
@@ -64,12 +64,12 @@
          (if (parser:ast-node-cond-else node)
              (do-vector-push-inst (generate-statement
                                    (parser:ast-node-cond-else node)) insts)
-             (vector-push-extend (format nil "nop") insts))
+             (vector-push-extend "nop" insts))
 
          (vector-push-extend (format nil ".L.end.~d:" count) insts)
 
          (unless (parser:next-node node)
-           (vector-push-extend (format nil "nop") insts)))
+           (vector-push-extend "nop" insts)))
        insts)
 
       ((parser:ast-node-for-p node)
@@ -83,7 +83,7 @@
          (when (parser:ast-node-for-cond node)
            (do-vector-push-inst (generate-expression
                                  (parser:ast-node-for-cond node)) insts)
-           (vector-push-extend (format nil "cmp $0, %rax") insts)
+           (vector-push-extend "cmp $0, %rax" insts)
            (vector-push-extend (format nil "je .L.end.~d" count) insts))
 
          (do-vector-push-inst (generate-statement
@@ -97,7 +97,7 @@
          (vector-push-extend (format nil ".L.end.~d:" count) insts)
 
          (unless (parser:next-node node)
-           (vector-push-extend (format nil "nop") insts)))
+           (vector-push-extend "nop" insts)))
        insts)
 
       ((parser:ast-node-loop-p node)
@@ -113,7 +113,7 @@
          (vector-push-extend (format nil ".L.end.~d:" count) insts)
 
          (unless (parser:next-node node)
-           (vector-push-extend (format nil "nop") insts)))
+           (vector-push-extend "nop" insts)))
        insts)
 
       ((parser:ast-node-expression-p node)
@@ -139,12 +139,12 @@
         ((parser:ast-node-negate-p node)
          (do-vector-push-inst (generate-expression
                                (parser:ast-node-negate-value node)) insts)
-         (vector-push-extend (format nil "neg %rax") insts)
+         (vector-push-extend "neg %rax" insts)
          insts)
 
         ((parser:ast-node-variable-p node)
          (vector-push-extend (lea node) insts)
-         (vector-push-extend (format nil "mov (%rax), %rax") insts)
+         (vector-push-extend "mov (%rax), %rax" insts)
          insts)
 
         ((parser:ast-node-assign-p node)
@@ -153,7 +153,7 @@
          (do-vector-push-inst (generate-expression
                                (parser:ast-node-assign-expr node)) insts)
          (vector-push-extend (asm-pop "rdi") insts)
-         (vector-push-extend (format nil "mov %rax, (%rdi)") insts)
+         (vector-push-extend "mov %rax, (%rdi)" insts)
          insts)
 
         ((parser:ast-node-binop-p node)
@@ -170,17 +170,17 @@
     (let ((kind (parser:ast-node-binop-kind node)))
       (ecase kind
         (:add
-         (vector-push-extend (format nil "add %rdi, %rax") insts))
+         (vector-push-extend "add %rdi, %rax" insts))
 
         (:sub
-         (vector-push-extend (format nil "sub %rdi, %rax") insts))
+         (vector-push-extend "sub %rdi, %rax" insts))
 
         (:mul
-         (vector-push-extend (format nil "imul %rdi, %rax") insts))
+         (vector-push-extend "imul %rdi, %rax" insts))
 
         (:div
-         (vector-push-extend (format nil "cqo") insts)
-         (vector-push-extend (format nil "idiv %rdi, %rax") insts))
+         (vector-push-extend "cqo" insts)
+         (vector-push-extend "idiv %rdi, %rax" insts))
 
         ((:equal
           :not-equal
@@ -188,28 +188,28 @@
           :lesser-or-equal
           :greater-than
           :greater-or-equal)
-         (vector-push-extend (format nil "cmp %rdi, %rax") insts)
+         (vector-push-extend "cmp %rdi, %rax" insts)
          (case kind
            (:equal
-            (vector-push-extend (format nil "sete %al") insts))
+            (vector-push-extend "sete %al" insts))
 
            (:not-equal
-            (vector-push-extend (format nil "setne %al") insts))
+            (vector-push-extend "setne %al" insts))
 
            (:lesser-than
-            (vector-push-extend (format nil "setl %al") insts))
+            (vector-push-extend "setl %al" insts))
 
            (:lesser-or-equal
-            (vector-push-extend (format nil "setle %al") insts))
+            (vector-push-extend "setle %al" insts))
 
            (:greater-than
-            (vector-push-extend (format nil "setg %al") insts))
+            (vector-push-extend "setg %al" insts))
 
            (:greater-or-equal
-            (vector-push-extend (format nil "setge %al") insts))
+            (vector-push-extend "setge %al" insts))
 
            (otherwise (values)))
-         (vector-push-extend (format nil "movzb %al, %rax") insts))))
+         (vector-push-extend "movzb %al, %rax" insts))))
     insts))
 
 (defun emit-code (src &key (stream nil) (indent 2) (indent-tabs t))
@@ -253,7 +253,7 @@ only Linux is tested."
                       :collect (if (string= (subseq inst 0 3) ".L.")
                                    ;; If instruction is label (.L. prefix),
                                    ;; don't indent it.
-                                   (format nil "~a" inst)
+                                   inst
                                    (format nil "~a~a" indent inst)))
 
                 ;; Return label
