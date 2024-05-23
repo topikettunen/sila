@@ -25,6 +25,10 @@ I'm writing about the development of this language to my blog when something
 interesting gets implemented. If you're interested about it, follow me
 [here](https://topikettunen.com/blog/tag/sila).
 
+## Why Common Lisp?
+
+I like using Common Lisp.
+
 ## Bugs
 
 Yes.
