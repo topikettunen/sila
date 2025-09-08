@@ -50,7 +50,7 @@ foreach(target ${SILA_TARGETS})
 endforeach()
 
 add_subdirectory(lib)
-add_subdirectory(runtime)
+add_subdirectory(driver)
 
 # Find the libraries that correspond to the LLVM components that we wish to use.
 llvm_map_components_to_libnames(llvm_libs support core irreader)
