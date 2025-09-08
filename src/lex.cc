@@ -6,8 +6,8 @@
 
 #include <llvm/Support/ErrorHandling.h>
 
-#include "sila/Lexer.h"
-#include "sila/Token.h"
+#include "sila/lex.h"
+#include "sila/token.h"
 
 namespace sila {
 
@@ -77,19 +77,25 @@ void Lexer::lexNumber() {
   // Fractional part
   if (*endPtr == '.' && std::isdigit(*(endPtr + 1))) {
     isFloat = true;
-    ++endPtr; // consume '.'
+
+    // consume '.'
+    ++endPtr;
+
     while (std::isdigit(*endPtr))
       ++endPtr;
   }
 
   // Exponent part
   if (*endPtr == 'e' || *endPtr == 'E') {
-    const char* expPtr = endPtr + 1;
+    const char *expPtr = endPtr + 1;
+
     if (*expPtr == '+' || *expPtr == '-')
       ++expPtr;
+
     if (std::isdigit(*expPtr)) {
       isFloat = true;
       endPtr = expPtr + 1;
+
       while (std::isdigit(*endPtr))
         ++endPtr;
     }
@@ -102,7 +108,7 @@ void Lexer::lexNumber() {
 
   Token tok = newToken(kind,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        literal);
 
   Tokens.push_back(tok);
@@ -113,10 +119,14 @@ void Lexer::lexPunct() {
   // Try to match longest punctuator at CurPtr
   for (auto const& punct : getPuncts()) {
     size_t len = std::strlen(punct.Text);
+
     if (std::strncmp(CurPtr, punct.Text, len) == 0) {
-      Token tok = newToken(punct.Kind, CurPtr, len, punct.Text);
+      Token tok = newToken(punct.Kind, CurPtr, static_cast<u32>(len), punct.Text);
       Tokens.push_back(tok);
-      CurPtr += len; // Advance pointer
+
+      // Advance pointer
+      CurPtr += len;
+
       return;
     }
   }
@@ -134,6 +144,7 @@ void Lexer::lexIdent() {
   std::string_view text(startPtr, endPtr - startPtr);
 
   TokenKind kind = TokenKind::identifier;
+
   auto keywords = getKeywords();
   auto it = keywords.find(text);
   if (it != keywords.end()) {
@@ -142,7 +153,7 @@ void Lexer::lexIdent() {
 
   Token tok = newToken(kind,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        text);
 
   Tokens.push_back(tok);
@@ -171,7 +182,7 @@ void Lexer::lexStringLiteral() {
 
   Token tok = newToken(TokenKind::string_literal,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        text);
 
   Tokens.push_back(tok);
@@ -199,7 +210,7 @@ void Lexer::lexCharLiteral() {
 
   Token tok = newToken(TokenKind::char_literal,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        text);
 
   Tokens.push_back(tok);
@@ -215,8 +226,8 @@ void Lexer::debugPrint(std::ostream &o) {
   o << "--- Tokens length " << Tokens.size() << "\n";
   o << "--- Section starting at line " << Location.Line << "\n";
   for (auto const &token : Tokens) {
-    o << "    " << token.Text.str() << " (len=" << token.Length << ") "
-      << getTokenText(token.Kind).str() << "\n";
+    o << "    " << token.Text << " (len=" << token.Length << ") "
+      << getTokenText(token.Kind) << "\n";
   }
 }
 

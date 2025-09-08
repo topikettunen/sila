@@ -2,8 +2,8 @@
 #include <iostream>
 #include <string>
 
-#include "sila/Lexer.h"
-#include "sila/Token.h"
+#include "sila/lex.h"
+#include "sila/token.h"
 
 namespace {
 

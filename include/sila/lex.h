@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "sila/Common.h"
-#include "sila/Macros.h"
-#include "sila/Token.h"
+#include "sila/common.h"
+#include "sila/macros.h"
+#include "sila/token.h"
 
 namespace sila {
 

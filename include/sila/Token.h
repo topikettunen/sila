@@ -3,27 +3,25 @@
 #include <unordered_map>
 #include <string_view>
 
-#include <llvm/ADT/StringRef.h>
-
-#include "sila/Common.h"
+#include "sila/common.h"
 
 namespace sila {
 
 enum class TokenKind : u8 {
 #define TOKEN(X) X,
-#include "sila/TokenKinds.def"
+#include "sila/tokenkinds.def"
 };
 
-llvm::StringRef getTokenText(TokenKind kind);
+std::string_view getTokenText(TokenKind kind);
 
 struct Token {
   TokenKind Kind;
   char const *Location;
-  i32 Length;
-  llvm::StringRef Text;
+  u32 Length;
+  std::string_view Text;
 };
 
-Token newToken(TokenKind kind, char const *loc, i32 len, llvm::StringRef text);
+Token newToken(TokenKind kind, char const *loc, u32 len, std::string_view text);
 
 struct PunctInfo {
   const char* Text;

@@ -1,6 +1,6 @@
 #include <set>
 
-#include "sila/Token.h"
+#include "sila/token.h"
 
 namespace sila {
 
@@ -8,29 +8,24 @@ namespace {
 
 std::string_view tokenNames[] = {
 #define TOKEN(X) #X,
-#include "sila/TokenKinds.def"
+#include "sila/tokenkinds.def"
 };
 
 std::vector<PunctInfo> puncts = {
 #define PUNCTUATOR(X,Y) {Y, TokenKind::X},
-#include "sila/TokenKinds.def"
-};
-
-std::set<llvm::StringRef> const keywords = {
-#define KEYWORD(X) #X,
-#include "sila/TokenKinds.def"
+#include "sila/tokenkinds.def"
 };
 
 std::unordered_map<std::string_view, TokenKind> keywordsMap = {
 #define KEYWORD(X) {#X, TokenKind::KW_##X},
-#include "sila/TokenKinds.def"
+#include "sila/tokenkinds.def"
 };
 
 } // namespace
 
-llvm::StringRef getTokenText(TokenKind k) { return tokenNames[(u8)k]; }
+std::string_view getTokenText(TokenKind k) { return tokenNames[(u8)k]; }
 
-Token newToken(TokenKind kind, char const *loc, i32 len, llvm::StringRef text) {
+Token newToken(TokenKind kind, char const *loc, u32 len, std::string_view text) {
   return Token{
     .Kind = kind,
     .Location = loc,

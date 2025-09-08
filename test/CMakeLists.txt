@@ -26,10 +26,6 @@ target_compile_options(testsila PRIVATE
   -Wno-unused-parameter
   -Wno-unused-function
   -Wno-sign-conversion
-
-  # TODO: For some reason, StringRef keeps throwing these. Fix if possible.
-  -Wno-shorten-64-to-32
-
   -fsanitize=undefined
   -fsanitize-trap
 )

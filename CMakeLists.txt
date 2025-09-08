@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.25)
 
 project(sila)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -35,10 +37,6 @@ foreach(target ${SILA_TARGETS})
     -Wno-unused-parameter
     -Wno-unused-function
     -Wno-sign-conversion
-
-    # TODO: For some reason, StringRef keeps throwing these. Fix if possible.
-    -Wno-shorten-64-to-32
-
     -fsanitize=undefined
     -fsanitize-trap
   )
@@ -49,8 +47,7 @@ foreach(target ${SILA_TARGETS})
   )
 endforeach()
 
-add_subdirectory(lib)
-add_subdirectory(driver)
+add_subdirectory(src)
 
 # Find the libraries that correspond to the LLVM components that we wish to use.
 llvm_map_components_to_libnames(llvm_libs support core irreader)
@@ -59,5 +56,5 @@ llvm_map_components_to_libnames(llvm_libs support core irreader)
 target_link_libraries(sila libsila ${llvm_libs})
 
 if (SILA_BUILD_TESTS)
-  add_subdirectory(unittests)
+  add_subdirectory(test)
 endif()

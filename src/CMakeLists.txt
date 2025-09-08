@@ -1,6 +1,8 @@
+target_sources(sila PRIVATE main.cc)
+
 set(sources
-  Lexer.cpp
-  Token.cpp
+  lex.cc
+  token.cc
 )
 
 target_sources(libsila PRIVATE ${sources})

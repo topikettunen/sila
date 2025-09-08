@@ -1,4 +1,5 @@
-#include "sila/Lexer.h"
+#include "sila/lex.h"
+
 #include <gtest/gtest.h>
 
 namespace {
