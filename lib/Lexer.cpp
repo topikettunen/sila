@@ -102,7 +102,7 @@ void Lexer::lexNumber() {
 
   Token tok = newToken(kind,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        literal);
 
   Tokens.push_back(tok);
@@ -114,7 +114,7 @@ void Lexer::lexPunct() {
   for (auto const& punct : getPuncts()) {
     size_t len = std::strlen(punct.Text);
     if (std::strncmp(CurPtr, punct.Text, len) == 0) {
-      Token tok = newToken(punct.Kind, CurPtr, len, punct.Text);
+      Token tok = newToken(punct.Kind, CurPtr, static_cast<u32>(len), punct.Text);
       Tokens.push_back(tok);
       CurPtr += len; // Advance pointer
       return;
@@ -142,7 +142,7 @@ void Lexer::lexIdent() {
 
   Token tok = newToken(kind,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        text);
 
   Tokens.push_back(tok);
@@ -171,7 +171,7 @@ void Lexer::lexStringLiteral() {
 
   Token tok = newToken(TokenKind::string_literal,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        text);
 
   Tokens.push_back(tok);
@@ -199,7 +199,7 @@ void Lexer::lexCharLiteral() {
 
   Token tok = newToken(TokenKind::char_literal,
                        startPtr,
-                       static_cast<i32>(endPtr - startPtr),
+                       static_cast<u32>(endPtr - startPtr),
                        text);
 
   Tokens.push_back(tok);
@@ -215,8 +215,8 @@ void Lexer::debugPrint(std::ostream &o) {
   o << "--- Tokens length " << Tokens.size() << "\n";
   o << "--- Section starting at line " << Location.Line << "\n";
   for (auto const &token : Tokens) {
-    o << "    " << token.Text.str() << " (len=" << token.Length << ") "
-      << getTokenText(token.Kind).str() << "\n";
+    o << "    " << token.Text << " (len=" << token.Length << ") "
+      << getTokenText(token.Kind) << "\n";
   }
 }
 
