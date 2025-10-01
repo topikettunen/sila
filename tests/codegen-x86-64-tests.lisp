@@ -14,7 +14,6 @@
                                                             :indent-tabs nil)
                                     ,(cdr test))
                            ,(car test)))))
-
 (deftest test-codegen-x86-64
   (testing-codegen
    "Integer"
@@ -42,7 +41,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Add and subtraction"
    (("{ return 5+20-4; }" . "  .globl main
@@ -85,7 +83,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Division and multiplication"
    (("{ return 2 / (1 + 1) * 8; }" . "  .globl main
@@ -113,7 +110,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Unary"
    (("{ return - -10; }" . "  .globl main
@@ -162,7 +158,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Comparison"
    (("{ return 1==1; }" . "  .globl main
@@ -255,7 +250,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Multiple statements"
    (("{ return 1;2;3; }" . "  .globl main
@@ -300,7 +294,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Variables"
    (("{ a:=8;return a; }" . "  .globl main
@@ -349,7 +342,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Block"
    (("{ 1; { 2; } return 3; }" . "  .globl main
@@ -366,7 +358,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "Conditional"
    (("{ if 1 == 0 { return 1; } return 0; }" . "  .globl main
@@ -417,7 +408,6 @@ main:
   pop %rbp
   ret
 ")))
-
   (testing-codegen
    "For loop"
    (("{ for ;; { return 3; } return 5; }" . "  .globl main

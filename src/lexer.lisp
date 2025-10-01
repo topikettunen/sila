@@ -71,7 +71,6 @@ SRC."
                         (- (length src) src-pos)))
          (token-val (trim-whitespace
                      (subseq src src-pos (+ src-pos token-len)))))
-
     ;; Idents starting with a letter will be caught with
     ;; a different conditional so if this is hit, ident
     ;; starts with a number but contains letters, which
@@ -81,7 +80,6 @@ SRC."
              :lexer-input src
              :error-msg "Ident can't start with a number."
              :token-pos src-pos))
-
     (cond ((not (null punct-pos))
            (setf src-pos punct-pos)
            (when (and (char= (char src src-pos) #\<)
@@ -93,7 +91,6 @@ SRC."
                     :token-pos src-pos)))
           (t
            (setf src-pos (length src))))
-
     (values (make-token :kind :num
                         :value token-val
                         :length (length token-val)
@@ -114,10 +111,8 @@ token in SRC."
                            (skip-to #'(lambda (c) (not (whitespacep c)))
                                     input keyword-end))
                    (values nil pos))))))
-
     (multiple-value-bind (keyword next-token-pos)
         (keyword-lookup src src-pos)
-
       (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
              (token-len (cond (keyword (length keyword))
                               (punct-pos (- punct-pos src-pos))
@@ -126,11 +121,9 @@ token in SRC."
                             keyword
                             (trim-whitespace
                              (subseq src src-pos (+ src-pos token-len))))))
-
         (setf src-pos (cond (keyword next-token-pos)
                             (punct-pos punct-pos)
                             (t (length src))))
-
         (values (make-token :kind (if keyword :keyword :ident)
                             :value token-val
                             :length (length token-val)
@@ -140,9 +133,7 @@ token in SRC."
 (defun gen-punct-token (src src-pos)
   (let* ((punct-len (punct-length src src-pos))
          (val (subseq src src-pos (+ src-pos punct-len))))
-
     (incf src-pos punct-len)
-
     (values (make-token :kind :punct
                         :value val
                         :position src-pos
@@ -154,7 +145,6 @@ token in SRC."
   (let* ((head (make-token :kind nil))
          (cur head)
          (src-pos 0))
-
     (macrolet ((gentoken (kind)
                  (let ((token-gen-fn (intern (format nil "GEN-~a-TOKEN" kind))))
                    `(multiple-value-bind (token pos)
@@ -162,25 +152,20 @@ token in SRC."
                       (setf (token-next cur) token)
                       (setf cur (token-next cur))
                       (setf src-pos pos)))))
-
       (loop :while (< src-pos (length src))
             :do (cond
                   ;; Skip whitespace
                   ((whitespacep (char src src-pos))
                    (incf src-pos))
-
                   ;; Number
                   ((digit-char-p (char src src-pos))
                    (gentoken number))
-
                   ;; Ident or keyword
                   ((alpha-char-p (char src src-pos))
                    (gentoken ident-or-keyword))
-
                   ;; Punctuator
                   ((punctuatorp (char src src-pos))
                    (gentoken punct))
-
                   (t
                    (error 'lexer-error
                           :lexer-input src
@@ -189,7 +174,6 @@ token in SRC."
     ;; No more tokens.
     (setf (token-next cur) (make-token :kind :eof :position src-pos))
     (setf cur (token-next cur))
-
     (token-next head)))
 
 (defun print-tokens (tokens)

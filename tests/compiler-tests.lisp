@@ -36,15 +36,12 @@
   (testing "Integer"
     (ok (compile-program-and-compare-rc "{ return 0; }" 0))
     (ok (compile-program-and-compare-rc "{ ;;;;; return 1; }" 1)))
-
   (testing "Arithmetics"
     (ok (compile-program-and-compare-rc "{ return 5 + 40 - 20; }" 25))
     (ok (compile-program-and-compare-rc "{ return 2 / (1 + 1) * 8; }" 8)))
-
   (testing "Unary"
     (ok (compile-program-and-compare-rc "{ return - -10; }" 10))
     (ok (compile-program-and-compare-rc "{ return -10+20; }" 10)))
-
   (testing "Comparisons"
     (ok (compile-program-and-compare-rc "{ return 0==1; }" 0))
     (ok (compile-program-and-compare-rc "{ return 1!=1; }" 0))
@@ -58,30 +55,24 @@
     (ok (compile-program-and-compare-rc "{ return 1<1; }" 0))
     (ok (compile-program-and-compare-rc "{ return 1>=1; }" 1))
     (ok (compile-program-and-compare-rc "{ return 1>=2; }" 0)))
-
   (testing "Multiple statements"
     (ok (compile-program-and-compare-rc "{ return 1; 2; 3; }" 1))
     (ok (compile-program-and-compare-rc "{ 1; return 2; 3; }" 2))
     (ok (compile-program-and-compare-rc "{ 1; 2; return 3; }" 3)))
-
   (testing "Variables"
     (ok (compile-program-and-compare-rc "{ a:=8; return a; }" 8))
     (ok (compile-program-and-compare-rc "{ a:=3; b:=5; return a+b; }" 8))
     (ok (compile-program-and-compare-rc "{ foo:=3; bar:=5; return foo+bar; }" 8))
     (ok (compile-program-and-compare-rc "{ foo2:=3; bar2:=5; return foo2+bar2; }" 8)))
-
   (testing "Block"
     (ok (compile-program-and-compare-rc "{ 1; { 2; } return 3; }" 3)))
-
   (testing "Conditionals"
     (ok (compile-program-and-compare-rc "{ if 1 { return 1; } return 2; }" 1))
     (ok (compile-program-and-compare-rc "{ if 0 { return 1; } else { return 2; } }" 2))
     (ok (compile-program-and-compare-rc "{ if 1<0 { return 1; } else { return 2; } }" 2)))
-
   (testing "For loop"
     (ok (compile-program-and-compare-rc "{ for ;; { return 3; } return 5; }" 3))
     (ok (compile-program-and-compare-rc "{ i:=0; j:=0;for i:=0; i<=10; i:=i+1 {j := i+j;} return j; }" 55)))
-
   (testing "Loop"
     (ok (compile-program-and-compare-rc "{ loop { return 3; } return 5; }" 3))
     (ok (compile-program-and-compare-rc "{ i := 0; loop { i := 3; break; } return i; }" 3))
