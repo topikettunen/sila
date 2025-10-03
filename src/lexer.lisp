@@ -1,12 +1,4 @@
-(defpackage #:sila/lexer
-  (:use #:cl)
-  (:local-nicknames
-   (#:util #:serapeum/bundle))
-  (:export #:token-kind
-           #:token-value
-           #:token-next
-           #:tokenize))
-(in-package #:sila/lexer)
+(in-package #:sila)
 
 (deftype kind ()
   "Sila token kind"

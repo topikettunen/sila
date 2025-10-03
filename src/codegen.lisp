@@ -1,10 +1,4 @@
-(defpackage #:sila/codegen
-  (:use #:cl)
-  (:local-nicknames
-   (#:lex #:sila/lexer)
-   (#:parser #:sila/parser))
-  (:export #:emit-code))
-(in-package #:sila/codegen)
+(in-package #:sila)
 
 (defparameter *stack-depth* 0)
 
@@ -29,75 +23,75 @@
 (defun generate-statement (node)
   (let ((insts (make-inst-array)))
     (cond
-      ((parser:ast-node-block-p node)
-       (loop :for body := (parser:ast-node-block-body node)
-               :then (setf body (parser:next-node body))
+      ((ast-node-block-p node)
+       (loop :for body := (ast-node-block-body node)
+               :then (setf body (next-node body))
              :until (null body)
              :do (do-vector-push-inst (generate-statement body) insts))
        insts)
-      ((parser:ast-node-return-p node)
+      ((ast-node-return-p node)
        (do-vector-push-inst (generate-expression
-                             (parser:ast-node-return-expr node)) insts)
+                             (ast-node-return-expr node)) insts)
        (vector-push-extend "jmp .L.return" insts)
        insts)
-      ((parser:ast-node-break-p node)
+      ((ast-node-break-p node)
        (vector-push-extend (format nil "jmp .L.end.~d"
-                                   (parser:ast-node-break-depth node)) insts)
+                                   (ast-node-break-depth node)) insts)
        insts)
-      ((parser:ast-node-cond-p node)
+      ((ast-node-cond-p node)
        (incf *label-count*)
        (let ((count *label-count*))
          (do-vector-push-inst (generate-expression
-                               (parser:ast-node-cond-expr node)) insts)
+                               (ast-node-cond-expr node)) insts)
          (vector-push-extend "cmp $0, %rax" insts)
          (vector-push-extend (format nil "je .L.else.~d" count) insts)
          (do-vector-push-inst (generate-statement
-                               (parser:ast-node-cond-then node)) insts)
+                               (ast-node-cond-then node)) insts)
          (vector-push-extend (format nil "jmp .L.end.~d" count) insts)
          (vector-push-extend (format nil ".L.else.~d:" count) insts)
-         (if (parser:ast-node-cond-else node)
+         (if (ast-node-cond-else node)
              (do-vector-push-inst (generate-statement
-                                   (parser:ast-node-cond-else node)) insts)
+                                   (ast-node-cond-else node)) insts)
              (vector-push-extend "nop" insts))
          (vector-push-extend (format nil ".L.end.~d:" count) insts)
-         (unless (parser:next-node node)
+         (unless (next-node node)
            (vector-push-extend "nop" insts)))
        insts)
-      ((parser:ast-node-for-p node)
+      ((ast-node-for-p node)
        (incf *label-count*)
        (let ((count *label-count*))
          (do-vector-push-inst (generate-statement
-                               (parser:ast-node-for-init node)) insts)
+                               (ast-node-for-init node)) insts)
          (vector-push-extend (format nil ".L.begin.~d:" count) insts)
-         (when (parser:ast-node-for-cond node)
+         (when (ast-node-for-cond node)
            (do-vector-push-inst (generate-expression
-                                 (parser:ast-node-for-cond node)) insts)
+                                 (ast-node-for-cond node)) insts)
            (vector-push-extend "cmp $0, %rax" insts)
            (vector-push-extend (format nil "je .L.end.~d" count) insts))
          (do-vector-push-inst (generate-statement
-                               (parser:ast-node-for-body node)) insts)
-         (when (parser:ast-node-for-inc node)
+                               (ast-node-for-body node)) insts)
+         (when (ast-node-for-inc node)
            (do-vector-push-inst (generate-expression
-                                 (parser:ast-node-for-inc node)) insts))
+                                 (ast-node-for-inc node)) insts))
          (vector-push-extend (format nil "jmp .L.begin.~d" count) insts)
          (vector-push-extend (format nil ".L.end.~d:" count) insts)
-         (unless (parser:next-node node)
+         (unless (next-node node)
            (vector-push-extend "nop" insts)))
        insts)
-      ((parser:ast-node-loop-p node)
+      ((ast-node-loop-p node)
        (incf *label-count*)
        (let ((count *label-count*))
          (vector-push-extend (format nil ".L.begin.~d:" count) insts)
          (do-vector-push-inst (generate-statement
-                               (parser:ast-node-loop-body node)) insts)
+                               (ast-node-loop-body node)) insts)
          (vector-push-extend (format nil "jmp .L.begin.~d" count) insts)
          (vector-push-extend (format nil ".L.end.~d:" count) insts)
-         (unless (parser:next-node node)
+         (unless (next-node node)
            (vector-push-extend "nop" insts)))
        insts)
-      ((parser:ast-node-expression-p node)
+      ((ast-node-expression-p node)
        (do-vector-push-inst (generate-expression
-                             (parser:ast-node-expression-expr node)) insts)
+                             (ast-node-expression-expr node)) insts)
        insts))))
 
 (defun generate-expression (node)
@@ -105,44 +99,44 @@
   (flet ((lea (node)
            "Load effective address"
            (format nil "lea ~d(%rbp), %rax"
-                   (parser:object-offset
-                    (parser:ast-node-variable-object node)))))
+                   (object-offset
+                    (ast-node-variable-object node)))))
     (let ((insts (make-inst-array)))
       (cond
-        ((parser:ast-node-integer-literal-p node)
+        ((ast-node-integer-literal-p node)
          (vector-push-extend
           (format nil "mov $~d, %rax"
-                  (parser:ast-node-integer-literal-value node)) insts)
+                  (ast-node-integer-literal-value node)) insts)
          insts)
-        ((parser:ast-node-negate-p node)
+        ((ast-node-negate-p node)
          (do-vector-push-inst (generate-expression
-                               (parser:ast-node-negate-value node)) insts)
+                               (ast-node-negate-value node)) insts)
          (vector-push-extend "neg %rax" insts)
          insts)
-        ((parser:ast-node-variable-p node)
+        ((ast-node-variable-p node)
          (vector-push-extend (lea node) insts)
          (vector-push-extend "mov (%rax), %rax" insts)
          insts)
-        ((parser:ast-node-assign-p node)
-         (vector-push-extend (lea (parser:ast-node-assign-var node)) insts)
+        ((ast-node-assign-p node)
+         (vector-push-extend (lea (ast-node-assign-var node)) insts)
          (vector-push-extend (asm-push) insts)
          (do-vector-push-inst (generate-expression
-                               (parser:ast-node-assign-expr node)) insts)
+                               (ast-node-assign-expr node)) insts)
          (vector-push-extend (asm-pop "rdi") insts)
          (vector-push-extend "mov %rax, (%rdi)" insts)
          insts)
-        ((parser:ast-node-binop-p node)
+        ((ast-node-binop-p node)
          (generate-binop-expression node))))))
 
 (defun generate-binop-expression (node)
   (let ((insts (make-inst-array)))
     (do-vector-push-inst (generate-expression
-                          (parser:ast-node-binop-rhs node)) insts)
+                          (ast-node-binop-rhs node)) insts)
     (vector-push-extend (asm-push) insts)
     (do-vector-push-inst (generate-expression
-                          (parser:ast-node-binop-lhs node)) insts)
+                          (ast-node-binop-lhs node)) insts)
     (vector-push-extend (asm-pop "rdi") insts)
-    (let ((kind (parser:ast-node-binop-kind node)))
+    (let ((kind (ast-node-binop-kind node)))
       (ecase kind
         (:add
          (vector-push-extend "add %rdi, %rax" insts))
@@ -181,7 +175,7 @@
   "Emit assembly code from given source code. Currently emits only x86-64 and
 only Linux is tested."
   ;; Init environment
-  (setf parser:*local-variables* nil
+  (setf *local-variables* nil
         *stack-depth* 0
         *label-count* 0)
   (let ((indent (if indent-tabs
@@ -189,7 +183,7 @@ only Linux is tested."
                     (coerce (make-list indent
                                        :initial-element #\Space)
                             'string))))
-    (let ((program (parser:parse-program (lex:tokenize src))))
+    (let ((program (parse-program (tokenize src))))
       ;; TODO(topi): these instructions probably should be collected to some
       ;; structure so they can be divided in to sections more easily when the
       ;; programs become more complex.
@@ -205,10 +199,10 @@ only Linux is tested."
                 (format nil "~apush %rbp" indent)
                 (format nil "~amov %rsp, %rbp" indent)
                 (format nil "~asub $~a, %rsp" indent
-                        (parser:func-stack-size program))
+                        (func-stack-size program))
                 ;; ASM Routine
                 (loop :for inst
-                        :across (generate-statement (parser:func-body program))
+                        :across (generate-statement (func-body program))
                       :collect (if (string= (subseq inst 0 3) ".L.")
                                    ;; If instruction is label (.L. prefix),
                                    ;; don't indent it.

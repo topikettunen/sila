@@ -1,19 +1,15 @@
-(defpackage #:sila/tests/codegen
-  (:use #:cl
-        #:sila
-        #:rove))
-(in-package #:sila/tests/codegen)
+(in-package #:sila/tests)
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :sila)' in your Lisp.
 
 (defmacro testing-codegen (desc testcases)
   `(testing ,desc
-     ,@(loop :for test :in testcases
-             :collect `(ok (string= (sila/codegen:emit-code ,(car test)
+            ,@(loop :for test :in testcases
+                    :collect `(ok (string= (sila::emit-code ,(car test)
                                                             :indent 2
                                                             :indent-tabs nil)
-                                    ,(cdr test))
-                           ,(car test)))))
+                                           ,(cdr test))
+                                  ,(car test)))))
 (deftest test-codegen-x86-64
   (testing-codegen
    "Integer"
