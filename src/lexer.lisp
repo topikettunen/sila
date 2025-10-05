@@ -14,7 +14,7 @@
   (kind (util:required-argument 'kind) :type (or null kind) :read-only t)
   (position 0 :type integer :read-only t)
   (length 0 :type integer :read-only t)
-  (value "" :type string :read-only t)
+  (literal "" :type string :read-only t)
   (next nil :type t))
 
 (defun whitespacep (c)
@@ -84,7 +84,7 @@ SRC."
           (t
            (setf src-pos (length src))))
     (values (make-token :kind :num
-                        :value token-val
+                        :literal token-val
                         :length (length token-val)
                         :position src-pos)
             src-pos)))
@@ -117,7 +117,7 @@ token in SRC."
                             (punct-pos punct-pos)
                             (t (length src))))
         (values (make-token :kind (if keyword :keyword :ident)
-                            :value token-val
+                            :literal token-val
                             :length (length token-val)
                             :position src-pos)
                 src-pos)))))
@@ -127,7 +127,7 @@ token in SRC."
          (val (subseq src src-pos (+ src-pos punct-len))))
     (incf src-pos punct-len)
     (values (make-token :kind :punct
-                        :value val
+                        :literal val
                         :position src-pos
                         :length punct-len)
             src-pos)))
@@ -178,14 +178,14 @@ lot which causes wrapping. Prints to STDERR."
           :then (setf tok (token-next tok))
         :until (null tok)
         :do (format *error-output*
-                    "#S(TOKEN :KIND ~a~c:POSITION ~d~c:LENGTH ~d~c:VALUE ~a)~%"
+                    "#S(TOKEN :KIND ~a~c:POSITION ~d~c:LENGTH ~d~c:LITERAL ~a)~%"
                     (token-kind tok)
                     #\Tab
                     (token-position tok)
                     #\Tab
                     (token-length tok)
                     #\Tab
-                    (token-value tok)))
+                    (token-literal tok)))
   (values))
 
 ;;;

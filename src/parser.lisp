@@ -140,7 +140,7 @@
   (stack-size 0 :type integer))
 
 (defun parse-statement-node (tok)
-  (alexandria:switch ((token-value tok) :test #'string=)
+  (alexandria:switch ((token-literal tok) :test #'string=)
     ("return"
      (multiple-value-bind (node rest)
          (parse-expression-node (token-next tok))
@@ -171,7 +171,7 @@
         (parse-statement-node tok)
       (setf then then-node
             tok rest))
-    (when (string= (token-value tok) "else")
+    (when (string= (token-literal tok) "else")
       (multiple-value-bind (else-node rest)
           (parse-statement-node (token-next tok))
         (setf else else-node
@@ -191,7 +191,7 @@
         (parse-expression-statement-node tok)
       (setf init init-node
             tok rest))
-    (unless (string= (token-value tok) ";")
+    (unless (string= (token-literal tok) ";")
       (multiple-value-bind (cond-node rest)
           (parse-expression-node tok)
         (setf cond cond-node
@@ -199,7 +199,7 @@
     (setf tok (skip-to-token ";" tok))
     ;; Entering "for" scope.
     (incf *break-depth*)
-    (unless (string= (token-value (token-next tok)) "{")
+    (unless (string= (token-literal (token-next tok)) "{")
       (multiple-value-bind (inc-node rest)
           (parse-expression-node (token-next tok))
         (setf inc inc-node
@@ -221,7 +221,7 @@
   ;; TOK passed in should be the opening brace of the block after the "loop"
   ;; keyword.
   ;; TODO(topi): Add proper error handling.
-  (assert (string= (token-value tok) "{"))
+  (assert (string= (token-literal tok) "{"))
   ;; Entering "loop" scope.
   (incf *break-depth*)
   (multiple-value-bind (body rest)
@@ -234,7 +234,7 @@
 (defun parse-compound-statement-node (tok)
   (let* ((head (make-ast-node))
          (cur head))
-    (loop :until (string= (token-value tok) "}")
+    (loop :until (string= (token-literal tok) "}")
           :do (multiple-value-bind (node rest)
                   (parse-statement-node tok)
                 (setf (ast-node-next cur) node)
@@ -245,7 +245,7 @@
 
 (defun parse-expression-statement-node (tok)
   ;; Empty statement, e.g. ';;; return 3;'
-  (when (string= (token-value tok) ";")
+  (when (string= (token-literal tok) ";")
     (return-from parse-expression-statement-node
       (values (make-ast-node-block :body nil)
               (token-next tok))))
@@ -263,7 +263,7 @@
         (parse-equality-node tok)
       (setf node eql-node
             tok rest))
-    (when (string= (token-value tok) ":=")
+    (when (string= (token-literal tok) ":=")
       (multiple-value-bind (expr-node rest)
           (parse-assign-node (token-next tok))
         (setf node (make-ast-node-assign :var node
@@ -283,7 +283,7 @@
            (loop
             (cond
               ,@(loop :for symbol :in comparison-symbols
-                      :collect `((string= (token-value rest) ,(car symbol))
+                      :collect `((string= (token-literal rest) ,(car symbol))
                                  (multiple-value-bind (rhs rest2)
                                      (,descent-parser-name (token-next rest))
                                    (setf node (make-ast-node-binop
@@ -318,7 +318,7 @@
                        ("/" . :div)))
 
 (defun parse-unary-node (tok)
-  (alexandria:switch ((token-value tok) :test #'string=)
+  (alexandria:switch ((token-literal tok) :test #'string=)
     ("+"
      (parse-unary-node (token-next tok)))
 
@@ -341,10 +341,10 @@
     (cond
       ((eq (token-kind tok) :num)
        (values (make-ast-node-integer-literal
-                :value (parse-integer (token-value tok)))
+                :value (parse-integer (token-literal tok)))
                (token-next tok)))
       ((eq (token-kind tok) :ident)
-       (let* ((name (token-value tok))
+       (let* ((name (token-literal tok))
               (var (find-local-var name)))
          (when (null var)
            (setf var (make-object :name name :next *local-variables*))
@@ -352,7 +352,7 @@
            (setf *local-variables* var))
          (values (make-ast-node-variable :object var)
                  (token-next tok))))
-      ((string= (token-value tok) "(")
+      ((string= (token-literal tok) "(")
        (multiple-value-bind (node rest)
            (parse-expression-node (token-next tok))
          (values node (token-next (skip-to-token ")" rest)))))
@@ -394,5 +394,5 @@
   (loop :for cur := tok
           :then (setf cur (token-next cur))
         :until (eq (token-kind cur) :eof)
-        :do (when (string= (token-value cur) val)
+        :do (when (string= (token-literal cur) val)
               (return-from skip-to-token cur))))
