@@ -139,153 +139,153 @@
   (locals (util:required-argument 'locals) :type t :read-only t)
   (stack-size 0 :type integer))
 
-(defun parse-statement-node (tok)
-  (alexandria:switch ((token-literal tok) :test #'string=)
+(defun parse-statement-node (tokens)
+  (alexandria:switch ((token-literal (first tokens)) :test #'string=)
     ("return"
      (multiple-value-bind (node rest)
-         (parse-expression-node (token-next tok))
+         (parse-expression-node (rest tokens))
        (values (make-ast-node-return :expr node)
-               (token-next (skip-to-token ";" rest)))))
+               (rest (skip-to-token ";" rest)))))
     ("if"
-     (parse-cond-statement-node (token-next tok)))
+     (parse-cond-statement-node (rest tokens)))
     ("for"
-     (parse-for-statement-node (token-next tok)))
+     (parse-for-statement-node (rest tokens)))
     ("loop"
-     (parse-loop-statement-node (token-next tok)))
+     (parse-loop-statement-node (rest tokens)))
     ("break"
      (values (make-ast-node-break :depth *break-depth*)
-             (token-next (skip-to-token ";" tok))))
+             (rest (skip-to-token ";" tokens))))
     ("{"
-     (parse-compound-statement-node (token-next tok)))
+     (parse-compound-statement-node (rest tokens)))
     (otherwise
-     (parse-expression-statement-node tok))))
+     (parse-expression-statement-node tokens))))
 
-(defun parse-cond-statement-node (tok)
+(defun parse-cond-statement-node (tokens)
   ;; TOK passed in should be the token after "if".
   (let (expr then else)
     (multiple-value-bind (expr-node rest)
-        (parse-expression-node tok)
+        (parse-expression-node tokens)
       (setf expr expr-node
-            tok rest))
+            tokens rest))
     (multiple-value-bind (then-node rest)
-        (parse-statement-node tok)
+        (parse-statement-node tokens)
       (setf then then-node
-            tok rest))
-    (when (string= (token-literal tok) "else")
+            tokens rest))
+    (when (string= (token-literal (first tokens)) "else")
       (multiple-value-bind (else-node rest)
-          (parse-statement-node (token-next tok))
+          (parse-statement-node (rest tokens))
         (setf else else-node
-              tok rest)))
+              tokens rest)))
     (values (make-ast-node-cond :expr expr
                                 :then then
                                 :else else)
-            tok)))
+            tokens)))
 
 (defvar *break-depth* 0
   "Depth counter for BREAK keyword to know from what level it should break out.")
 
-(defun parse-for-statement-node (tok)
+(defun parse-for-statement-node (tokens)
   ;; TOK passed in should be the token after "for"
   (let (init cond inc body)
     (multiple-value-bind (init-node rest)
-        (parse-expression-statement-node tok)
+        (parse-expression-statement-node tokens)
       (setf init init-node
-            tok rest))
-    (unless (string= (token-literal tok) ";")
+            tokens rest))
+    (unless (string= (token-literal (first tokens)) ";")
       (multiple-value-bind (cond-node rest)
-          (parse-expression-node tok)
+          (parse-expression-node tokens)
         (setf cond cond-node
-              tok rest)))
-    (setf tok (skip-to-token ";" tok))
+              tokens rest)))
+    (setf tokens (skip-to-token ";" tokens))
     ;; Entering "for" scope.
     (incf *break-depth*)
-    (unless (string= (token-literal (token-next tok)) "{")
+    (unless (string= (token-literal (second tokens)) "{")
       (multiple-value-bind (inc-node rest)
-          (parse-expression-node (token-next tok))
+          (parse-expression-node (rest tokens))
         (setf inc inc-node
-              tok rest)))
-    (setf tok (skip-to-token "{" tok))
+              tokens rest)))
+    (setf tokens (skip-to-token "{" tokens))
     (multiple-value-bind (body-node rest)
-        (parse-statement-node tok)
+        (parse-statement-node tokens)
       (setf body body-node
-            tok rest))
+            tokens rest))
     ;; Left "for" scope.
     (decf *break-depth*)
     (values (make-ast-node-for :init init
                                :cond cond
                                :inc inc
                                :body body)
-            tok)))
+            tokens)))
 
-(defun parse-loop-statement-node (tok)
+(defun parse-loop-statement-node (tokens)
   ;; TOK passed in should be the opening brace of the block after the "loop"
   ;; keyword.
   ;; TODO(topi): Add proper error handling.
-  (assert (string= (token-literal tok) "{"))
+  (assert (string= (token-literal (first tokens)) "{"))
   ;; Entering "loop" scope.
   (incf *break-depth*)
   (multiple-value-bind (body rest)
-      (parse-statement-node tok)
+      (parse-statement-node tokens)
     ;; Left "loop" scope.
     (decf *break-depth*)
     (values (make-ast-node-loop :body body)
             rest)))
 
-(defun parse-compound-statement-node (tok)
+(defun parse-compound-statement-node (tokens)
   (let* ((head (make-ast-node))
          (cur head))
-    (loop :until (string= (token-literal tok) "}")
+    (loop :until (string= (token-literal (first tokens)) "}")
           :do (multiple-value-bind (node rest)
-                  (parse-statement-node tok)
+                  (parse-statement-node tokens)
                 (setf (ast-node-next cur) node)
                 (setf cur (ast-node-next cur))
-                (setf tok rest)))
+                (setf tokens rest)))
     (values (make-ast-node-block :body (ast-node-next head))
-            (token-next tok))))
+            (rest tokens))))
 
-(defun parse-expression-statement-node (tok)
+(defun parse-expression-statement-node (tokens)
   ;; Empty statement, e.g. ';;; return 3;'
-  (when (string= (token-literal tok) ";")
+  (when (string= (token-literal (first tokens)) ";")
     (return-from parse-expression-statement-node
       (values (make-ast-node-block :body nil)
-              (token-next tok))))
+              (rest tokens))))
   (multiple-value-bind (node rest)
-      (parse-expression-node tok)
+      (parse-expression-node tokens)
     (values (make-ast-node-expression :expr node)
-            (token-next (skip-to-token ";" rest)))))
+            (rest (skip-to-token ";" rest)))))
 
-(defun parse-expression-node (tok)
-  (parse-assign-node tok))
+(defun parse-expression-node (tokens)
+  (parse-assign-node tokens))
 
-(defun parse-assign-node (tok)
+(defun parse-assign-node (tokens)
   (let (node)
     (multiple-value-bind (eql-node rest)
-        (parse-equality-node tok)
+        (parse-equality-node tokens)
       (setf node eql-node
-            tok rest))
-    (when (string= (token-literal tok) ":=")
+            tokens rest))
+    (when (string= (token-literal (first tokens)) ":=")
       (multiple-value-bind (expr-node rest)
-          (parse-assign-node (token-next tok))
+          (parse-assign-node (rest tokens))
         (setf node (make-ast-node-assign :var node
                                          :expr expr-node)
-              tok rest)))
-    (values node tok)))
+              tokens rest)))
+    (values node tokens)))
 
 (defmacro define-binop-parser (name &key descent-parser comparison-symbols)
   "Macro for generating new binary operator parser rules."
   (let ((parser-name (intern (format nil "PARSE-~a-NODE" name)))
         (descent-parser-name (intern (format nil "PARSE-~a-NODE" descent-parser))))
-    `(defun ,parser-name (tok)
+    `(defun ,parser-name (tokens)
        (let (node)
          (multiple-value-bind (lhs rest)
-             (,descent-parser-name tok)
+             (,descent-parser-name tokens)
            (setf node lhs)
            (loop
             (cond
               ,@(loop :for symbol :in comparison-symbols
-                      :collect `((string= (token-literal rest) ,(car symbol))
+                      :collect `((string= (token-literal (first rest)) ,(car symbol))
                                  (multiple-value-bind (rhs rest2)
-                                     (,descent-parser-name (token-next rest))
+                                     (,descent-parser-name (rest rest))
                                    (setf node (make-ast-node-binop
                                                :kind ,(cdr symbol)
                                                :lhs node
@@ -317,21 +317,19 @@
   :comparison-symbols (("*" . :mul)
                        ("/" . :div)))
 
-(defun parse-unary-node (tok)
-  (alexandria:switch ((token-literal tok) :test #'string=)
+(defun parse-unary-node (tokens)
+  (alexandria:switch ((token-literal (first tokens)) :test #'string=)
     ("+"
-     (parse-unary-node (token-next tok)))
-
+     (parse-unary-node (rest tokens)))
     ("-"
      (multiple-value-bind (node rest)
-         (parse-unary-node (token-next tok))
+         (parse-unary-node (rest tokens))
        (values (make-ast-node-negate :value node)
                rest)))
-
     (t
-     (parse-primary-node tok))))
+     (parse-primary-node tokens))))
 
-(defun parse-primary-node (tok)
+(defun parse-primary-node (tokens)
   (flet ((find-local-var (name)
            (loop :for obj := *local-variables*
                    :then (setf obj (object-next obj))
@@ -339,26 +337,26 @@
                  :do (when (string= name (object-name obj))
                        (return-from find-local-var obj)))))
     (cond
-      ((eq (token-kind tok) :num)
+      ((eq (token-kind (first tokens)) :num)
        (values (make-ast-node-integer-literal
-                :value (parse-integer (token-literal tok)))
-               (token-next tok)))
-      ((eq (token-kind tok) :ident)
-       (let* ((name (token-literal tok))
+                :value (parse-integer (token-literal (first tokens))))
+               (rest tokens)))
+      ((eq (token-kind (first tokens)) :ident)
+       (let* ((name (token-literal (first tokens)))
               (var (find-local-var name)))
          (when (null var)
            (setf var (make-object :name name :next *local-variables*))
            ;; New object should be in front of the list.
            (setf *local-variables* var))
          (values (make-ast-node-variable :object var)
-                 (token-next tok))))
-      ((string= (token-literal tok) "(")
+                 (rest tokens))))
+      ((string= (token-literal (first tokens)) "(")
        (multiple-value-bind (node rest)
-           (parse-expression-node (token-next tok))
-         (values node (token-next (skip-to-token ")" rest)))))
-      (t (error "Unexpected token value: ~a" tok)))))
+           (parse-expression-node (rest tokens))
+         (values node (rest (skip-to-token ")" rest)))))
+      (t (error "Unexpected token value: ~a" tokens)))))
 
-(defun parse-program (tok)
+(defun parse-program (tokens)
   (labels ((align-to (n align)
              "Round N to the nearest multiple of ALIGN."
              (* (ceiling n align) align))
@@ -372,14 +370,15 @@
                            (setf (object-offset obj) (- offset))))
                (setf (func-stack-size program) (align-to offset 16)))
              (values)))
-    (let* ((head (make-ast-node))
+    (let* ((toks tokens)
+           (head (make-ast-node))
            (cur head))
-      (loop :until (eq (token-kind tok) :eof)
+      (loop :until (eq (token-kind (first toks)) :eof)
             :do (multiple-value-bind (node rest)
-                    (parse-statement-node tok)
+                    (parse-statement-node toks)
                   (setf (ast-node-next cur) node)
                   (setf cur (ast-node-next cur))
-                  (setf tok rest)))
+                  (setf toks rest)))
       (let ((program (make-func :body (ast-node-next head)
                                 :locals *local-variables*)))
         (set-lvar-offsets program)
@@ -389,10 +388,10 @@
 ;;; Parser Utilities
 ;;;
 
-(defun skip-to-token (val tok)
+(defun skip-to-token (val tokens)
   "Search for token which is VAL. Returns NIL when not found."
-  (loop :for cur := tok
-          :then (setf cur (token-next cur))
-        :until (eq (token-kind cur) :eof)
-        :do (when (string= (token-literal cur) val)
-              (return-from skip-to-token cur))))
+  (let ((toks tokens))
+    (loop :until (eq (token-kind (first toks)) :eof)
+          :do (if (string= (token-literal (first toks)) val)
+                  (return-from skip-to-token toks)
+                  (setf toks (rest toks))))))

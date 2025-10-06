@@ -183,7 +183,7 @@ only Linux is tested."
                     (coerce (make-list indent
                                        :initial-element #\Space)
                             'string))))
-    (let ((program (parse-program (tokenize src))))
+    (let ((program (parse-program (lex src))))
       ;; TODO(topi): these instructions probably should be collected to some
       ;; structure so they can be divided in to sections more easily when the
       ;; programs become more complex.

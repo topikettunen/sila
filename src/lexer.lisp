@@ -9,13 +9,18 @@
     :num
     :eof))
 
-(defstruct (token
-            (:copier nil))
-  (kind (util:required-argument 'kind) :type (or null kind) :read-only t)
-  (position 0 :type integer :read-only t)
-  (length 0 :type integer :read-only t)
-  (literal "" :type string :read-only t)
-  (next nil :type t))
+(util:defstruct-read-only token
+  (kind :type (or null kind))
+  (position 0 :type integer)
+  (length 0 :type integer)
+  (literal "" :type string))
+
+(defun list-of-tokens-p (list)
+  (and (consp list)
+       (every #'token-p list)))
+
+(deftype list-of-tokens ()
+  `(satisfies list-of-tokens-p))
 
 (defun whitespacep (c)
   "Predicate for whitespace."
@@ -67,6 +72,9 @@ SRC."
     ;; a different conditional so if this is hit, ident
     ;; starts with a number but contains letters, which
     ;; isn't acceptable.
+    ;;
+    ;; TODO: collect all the errors in some list.
+    ;;
     (unless (every #'digit-char-p token-val)
       (error 'lexer-error
              :lexer-input src
@@ -132,17 +140,15 @@ token in SRC."
                         :length punct-len)
             src-pos)))
 
-(defun tokenize (src)
+(defun lex (src)
   "Generate tokens from the given source code."
-  (let* ((head (make-token :kind nil))
-         (cur head)
+  (let* ((tokens (list))
          (src-pos 0))
     (macrolet ((gentoken (kind)
                  (let ((token-gen-fn (intern (format nil "GEN-~a-TOKEN" kind))))
                    `(multiple-value-bind (token pos)
                         (,token-gen-fn src src-pos)
-                      (setf (token-next cur) token)
-                      (setf cur (token-next cur))
+                      (push token tokens)
                       (setf src-pos pos)))))
       (loop :while (< src-pos (length src))
             :do (cond
@@ -164,18 +170,13 @@ token in SRC."
                           :error-msg "Invalid token."
                           :token-pos src-pos)))))
     ;; No more tokens.
-    (setf (token-next cur) (make-token :kind :eof :position src-pos))
-    (setf cur (token-next cur))
-    (token-next head)))
+    (push (make-token :kind :eof :position src-pos) tokens)
+    (nreverse tokens)))
 
 (defun print-tokens (tokens)
   "This is mainly used for printing long linked list of tokens, so that they look
-slighly better when printing it in REPL. Essentially it just prints the token
-like the default function, but it just removes the NEXT slot from it since it
-when printing token with NEXT tokens, in REPL, the structure drifts to left a
-lot which causes wrapping. Prints to STDERR."
-  (loop :for tok := tokens
-          :then (setf tok (token-next tok))
+slighly better when printing it in REPL."
+  (loop :for tok :in tokens
         :until (null tok)
         :do (format *error-output*
                     "#S(TOKEN :KIND ~a~c:POSITION ~d~c:LENGTH ~d~c:LITERAL ~a)~%"
