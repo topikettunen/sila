@@ -29,7 +29,7 @@
   "State for lexical analysis"
   (tokens nil :type (or null list-of-tokens))
   (errors nil :type (or null list-of-tokens))
-  (sourcefile (util:required-argument 'sourcefile) :type string :read-only t))
+  (source (util:required-argument 'sourcefile) :type string :read-only t))
 
 (defun whitespacep (c)
   "Predicate for whitespace."
@@ -186,14 +186,18 @@ token in SRC."
                           :token-pos src-pos)))))
     tokens))
 
-(defun lex (src-file)
-  (let ((src-lines (uiop:read-file-lines src-file))
+(defun lex (&key (src-file nil) (code nil))
+  (unless (or src-file code)
+    (error "Either SRC-FILE or CODE needs to be set."))
+  (let ((src (if code
+                 (list code)       ; list of source lines is expected
+                 (uiop:read-file-lines src-file)))
         (tokens '()))
-    (dotimes (line-no (length src-lines))
-      (push (lex-line (nth line-no src-lines) (1+ line-no)) tokens))
+    (dotimes (line-no (length src))
+      (push (lex-line (nth line-no src) (1+ line-no)) tokens))
     ;; No more tokens.
     (push (make-token :kind :eof :line nil :col nil) tokens)
-    (make-lexer :sourcefile src-file
+    (make-lexer :source (if code code src-file)
                 ;; TODO: do I want to flatten this list of list-of-tokens?
                 :tokens (nreverse (util:flatten tokens))
                 ;; TODO: gather errors

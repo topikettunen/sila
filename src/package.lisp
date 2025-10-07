@@ -3,4 +3,6 @@
 (defpackage #:sila
   (:use #:cl)
   (:local-nicknames
-   (#:util #:serapeum/bundle)))
+   (#:util #:serapeum/bundle))
+  (:export #:sila-run
+           #:sila-compile))

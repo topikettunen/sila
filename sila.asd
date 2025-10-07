@@ -8,7 +8,8 @@
                 ((:file "package")
                  (:file "lexer")
                  (:file "parser")
-                 (:file "codegen"))))
+                 (:file "codegen")
+                 (:file "driver"))))
   :description "Sila programming language"
   :in-order-to ((test-op (test-op "sila/tests"))))
 

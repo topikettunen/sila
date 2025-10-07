@@ -171,7 +171,7 @@
          (vector-push-extend "movzb %al, %rax" insts))))
     insts))
 
-(defun emit-code (src &key (stream nil) (indent 2) (indent-tabs t))
+(defun emit-code (program &key (stream nil) (indent 2) (indent-tabs t))
   "Emit assembly code from given source code. Currently emits only x86-64 and
 only Linux is tested."
   ;; Init environment
@@ -183,35 +183,34 @@ only Linux is tested."
                     (coerce (make-list indent
                                        :initial-element #\Space)
                             'string))))
-    (let ((program (parse-program (lex src))))
-      ;; TODO(topi): these instructions probably should be collected to some
-      ;; structure so they can be divided in to sections more easily when the
-      ;; programs become more complex.
-      (format stream
-              "~{~a~%~}"
-              (alexandria:flatten
-               (list
-                ;; ASM Directive
-                (format nil "~a.globl main" indent)
-                ;; Main Label
-                "main:"
-                ;; Prologue
-                (format nil "~apush %rbp" indent)
-                (format nil "~amov %rsp, %rbp" indent)
-                (format nil "~asub $~a, %rsp" indent
-                        (func-stack-size program))
-                ;; ASM Routine
-                (loop :for inst
-                        :across (generate-statement (func-body program))
-                      :collect (if (string= (subseq inst 0 3) ".L.")
-                                   ;; If instruction is label (.L. prefix),
-                                   ;; don't indent it.
-                                   inst
-                                   (format nil "~a~a" indent inst)))
-                ;; Return label
-                ".L.return:"
-                ;; Epilogue
-                (format nil "~amov %rbp, %rsp" indent)
-                (format nil "~apop %rbp" indent)
-                ;; Return
-                (format nil "~aret" indent)))))))
+    ;; TODO(topi): these instructions probably should be collected to some
+    ;; structure so they can be divided in to sections more easily when the
+    ;; programs become more complex.
+    (format stream
+            "~{~a~%~}"
+            (util:flatten
+             (list
+              ;; ASM Directive
+              (format nil "~a.globl main" indent)
+              ;; Main Label
+              "main:"
+              ;; Prologue
+              (format nil "~apush %rbp" indent)
+              (format nil "~amov %rsp, %rbp" indent)
+              (format nil "~asub $~a, %rsp" indent
+                      (func-stack-size program))
+              ;; ASM Routine
+              (loop :for inst
+                      :across (generate-statement (func-body program))
+                    :collect (if (string= (subseq inst 0 3) ".L.")
+                                 ;; If instruction is label (.L. prefix),
+                                 ;; don't indent it.
+                                 inst
+                                 (format nil "~a~a" indent inst)))
+              ;; Return label
+              ".L.return:"
+              ;; Epilogue
+              (format nil "~amov %rbp, %rsp" indent)
+              (format nil "~apop %rbp" indent)
+              ;; Return
+              (format nil "~aret" indent))))))

@@ -4,12 +4,15 @@
 
 (defmacro testing-codegen (desc testcases)
   `(testing ,desc
-            ,@(loop :for test :in testcases
-                    :collect `(ok (string= (sila::emit-code ,(car test)
-                                                            :indent 2
-                                                            :indent-tabs nil)
-                                           ,(cdr test))
-                                  ,(car test)))))
+     ,@(loop :for test :in testcases
+             :collect `(let* ((toks (sila::lexer-tokens (sila::lex :code ,(car test))))
+                              (prog (sila::parse-program toks)))
+                         (ok (string= (sila::emit-code prog
+                                                       :indent 2
+                                                       :indent-tabs nil)
+                                      ,(cdr test))
+                             ,(car test))))))
+
 (deftest test-codegen-x86-64
   (testing-codegen
    "Integer"
