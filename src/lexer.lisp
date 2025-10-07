@@ -3,6 +3,7 @@
 (deftype kind ()
   "Sila token kind"
   '(member
+    :error
     :ident
     :punct
     :keyword
@@ -11,7 +12,8 @@
 
 (util:defstruct-read-only token
   (kind :type (or null kind))
-  (position 0 :type integer)
+  (line 1 :type (or null integer)) ;; One-based offset to the source
+  (col 1 :type (or null integer)) ;; One-based offset to the source
   (length 0 :type integer)
   (literal "" :type string))
 
@@ -21,6 +23,13 @@
 
 (deftype list-of-tokens ()
   `(satisfies list-of-tokens-p))
+
+(defstruct (lexer
+            (:copier nil))
+  "State for lexical analysis"
+  (tokens nil :type (or null list-of-tokens))
+  (errors nil :type (or null list-of-tokens))
+  (sourcefile (util:required-argument 'sourcefile) :type string :read-only t))
 
 (defun whitespacep (c)
   "Predicate for whitespace."
@@ -58,10 +67,11 @@
 (defvar *sila-keywords*
   #("return" "if" "else" "for" "loop" "break"))
 
-(defun gen-number-token (src src-pos)
+(defun gen-number-token (src line-no src-pos)
   "Generate token for NUMBER and return it and the SRC-POS to the next token in
 SRC."
-  (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
+  (let* ((start-pos src-pos)
+         (punct-pos (skip-to #'punctuatorp src src-pos))
          (token-len (if punct-pos
                         (- punct-pos src-pos)
                         ;; No more punctuators.
@@ -94,10 +104,11 @@ SRC."
     (values (make-token :kind :num
                         :literal token-val
                         :length (length token-val)
-                        :position src-pos)
+                        :line line-no
+                        :col start-pos)
             src-pos)))
 
-(defun gen-ident-or-keyword-token (src src-pos)
+(defun gen-ident-or-keyword-token (src line-no src-pos)
   "Generate IDENT or KEYWORD token and return it and the SRC-POS to the next
 token in SRC."
   (flet ((keyword-lookup (input pos)
@@ -113,7 +124,8 @@ token in SRC."
                    (values nil pos))))))
     (multiple-value-bind (keyword next-token-pos)
         (keyword-lookup src src-pos)
-      (let* ((punct-pos (skip-to #'punctuatorp src src-pos))
+      (let* ((start-pos src-pos)
+             (punct-pos (skip-to #'punctuatorp src src-pos))
              (token-len (cond (keyword (length keyword))
                               (punct-pos (- punct-pos src-pos))
                               (t (- (length src) src-pos))))
@@ -127,67 +139,65 @@ token in SRC."
         (values (make-token :kind (if keyword :keyword :ident)
                             :literal token-val
                             :length (length token-val)
-                            :position src-pos)
+                            :line line-no
+                            :col start-pos)
                 src-pos)))))
 
-(defun gen-punct-token (src src-pos)
-  (let* ((punct-len (punct-length src src-pos))
+(defun gen-punct-token (src line-no src-pos)
+  (let* ((start-pos src-pos)
+         (punct-len (punct-length src src-pos))
          (val (subseq src src-pos (+ src-pos punct-len))))
     (incf src-pos punct-len)
     (values (make-token :kind :punct
                         :literal val
-                        :position src-pos
-                        :length punct-len)
+                        :length punct-len
+                        :line line-no
+                        :col start-pos)
             src-pos)))
 
-(defun lex (src)
+(defun lex-line (line line-no)
   "Generate tokens from the given source code."
   (let* ((tokens (list))
          (src-pos 0))
     (macrolet ((gentoken (kind)
                  (let ((token-gen-fn (intern (format nil "GEN-~a-TOKEN" kind))))
                    `(multiple-value-bind (token pos)
-                        (,token-gen-fn src src-pos)
+                        (,token-gen-fn line line-no src-pos)
                       (push token tokens)
                       (setf src-pos pos)))))
-      (loop :while (< src-pos (length src))
+      (loop :while (< src-pos (length line))
             :do (cond
                   ;; Skip whitespace
-                  ((whitespacep (char src src-pos))
+                  ((whitespacep (char line src-pos))
                    (incf src-pos))
                   ;; Number
-                  ((digit-char-p (char src src-pos))
+                  ((digit-char-p (char line src-pos))
                    (gentoken number))
                   ;; Ident or keyword
-                  ((alpha-char-p (char src src-pos))
+                  ((alpha-char-p (char line src-pos))
                    (gentoken ident-or-keyword))
                   ;; Punctuator
-                  ((punctuatorp (char src src-pos))
+                  ((punctuatorp (char line src-pos))
                    (gentoken punct))
                   (t
                    (error 'lexer-error
-                          :lexer-input src
+                          :lexer-input line
                           :error-msg "Invalid token."
                           :token-pos src-pos)))))
-    ;; No more tokens.
-    (push (make-token :kind :eof :position src-pos) tokens)
-    (nreverse tokens)))
+    tokens))
 
-(defun print-tokens (tokens)
-  "This is mainly used for printing long linked list of tokens, so that they look
-slighly better when printing it in REPL."
-  (loop :for tok :in tokens
-        :until (null tok)
-        :do (format *error-output*
-                    "#S(TOKEN :KIND ~a~c:POSITION ~d~c:LENGTH ~d~c:LITERAL ~a)~%"
-                    (token-kind tok)
-                    #\Tab
-                    (token-position tok)
-                    #\Tab
-                    (token-length tok)
-                    #\Tab
-                    (token-literal tok)))
-  (values))
+(defun lex (src-file)
+  (let ((src-lines (uiop:read-file-lines src-file))
+        (tokens '()))
+    (dotimes (line-no (length src-lines))
+      (push (lex-line (nth line-no src-lines) (1+ line-no)) tokens))
+    ;; No more tokens.
+    (push (make-token :kind :eof :line nil :col nil) tokens)
+    (make-lexer :sourcefile src-file
+                ;; TODO: do I want to flatten this list of list-of-tokens?
+                :tokens (nreverse (util:flatten tokens))
+                ;; TODO: gather errors
+                :errors nil)))
 
 ;;;
 ;;; Lexer error handling
