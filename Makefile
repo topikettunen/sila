@@ -8,11 +8,11 @@ test:
 
 .PHONY: docker-build
 docker-build:
-	docker build -t sila .
+	docker build --platform linux/amd64 -t sila .
 
 .PHONY: docker-run
 docker-run:
-	docker run -it --rm -v ${PWD}:/root/.roswell/local-projects/sila sila
+	docker run --platform linux/amd64 -it --rm -v ${PWD}:/root/common-lisp/sila sila
 
 .PHONY: clean
 clean:
