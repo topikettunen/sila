@@ -4,5 +4,6 @@
   (:use #:cl)
   (:local-nicknames
    (#:util #:serapeum/bundle))
-  (:export #:sila-run
+  (:export #:sila-main
+           #:sila-run
            #:sila-compile))

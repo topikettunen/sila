@@ -1,5 +1,12 @@
 (in-package #:sila)
 
+(defun sila-main (argv)
+  (unless (= (length argv) 1)
+    (format *error-output* "Invalid number of arguments, expected 1.~%")
+    (uiop:quit 1))
+  (sila:sila-run :code (first argv) :stream *standard-output*)
+  (uiop:quit 0))
+
 (defun sila-run (&key (src-file nil) (code nil) (emit-asm t) (stream *standard-output*))
   (unless (and (not (and src-file code))
                (or src-file code))

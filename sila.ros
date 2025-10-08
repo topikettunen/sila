@@ -12,9 +12,4 @@ exec ros -Q -- $0 "$@"
 (in-package :ros.script.sila.3901611889)
 
 (defun main (&rest argv)
-  "Sila programming language entrypoint."
-  (unless (= (length argv) 1)
-    (format *error-output* "Invalid number of arguments, expected 1.~%")
-    (uiop:quit 1))
-  (sila:sila-run :code (first argv) :stream *standard-output*)
-  (uiop:quit 0))
+  (sila:sila-main argv))
