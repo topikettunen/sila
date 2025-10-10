@@ -1,69 +1,28 @@
 (in-package #:sila)
 
-(defstruct (ast-node
-            (:copier nil))
-  (next nil :type t))
+(util:defstruct-read-only ast-node-block
+  body)
 
-(defgeneric next-node (node))
+(util:defstruct-read-only ast-node-negate
+  value)
 
-(defstruct (ast-node-block
-            (:include ast-node)
-            (:copier nil))
-  (body (util:required-argument 'body) :type t :read-only t))
+(util:defstruct-read-only ast-node-integer-literal
+  (value :type integer))
 
-(defmethod next-node ((node ast-node-block))
-  (ast-node-block-next node))
+(util:defstruct-read-only ast-node-variable
+  (object :type object))
 
-(defstruct (ast-node-negate
-            (:include ast-node)
-            (:copier nil))
-  (value (util:required-argument 'value) :type t :read-only t))
+(util:defstruct-read-only ast-node-return
+  expr)
 
-(defmethod next-node ((node ast-node-negate))
-  (ast-node-negate-next node))
+(util:defstruct-read-only ast-node-assign
+  (var :type ast-node-variable)
+  expr)
 
-(defstruct (ast-node-integer-literal
-            (:include ast-node)
-            (:copier nil))
-  (value (util:required-argument 'value) :type integer :read-only t))
-
-(defmethod next-node ((node ast-node-integer-literal))
-  (ast-node-integer-literal-next node))
-
-(defstruct (ast-node-variable
-            (:include ast-node)
-            (:copier nil))
-  (object (util:required-argument 'object) :type object :read-only t))
-
-(defmethod next-node ((node ast-node-variable))
-  (ast-node-variable-next node))
-
-(defstruct (ast-node-return
-            (:include ast-node)
-            (:copier nil))
-  (expr (util:required-argument 'expr) :type t :read-only t))
-
-(defmethod next-node ((node ast-node-return))
-  (ast-node-return-next node))
-
-(defstruct (ast-node-assign
-            (:include ast-node)
-            (:copier nil))
-  (var (util:required-argument 'var) :type ast-node-variable :read-only t)
-  (expr (util:required-argument 'expr) :type t :read-only t))
-
-(defmethod next-node ((node ast-node-assign))
-  (ast-node-assign-next node))
-
-(defstruct (ast-node-cond
-            (:include ast-node)
-            (:copier nil))
-  (expr (util:required-argument 'expr) :type t :read-only t)
-  (then (util:required-argument 'then) :type t :read-only t)
-  (else (util:required-argument 'else) :type t :read-only t))
-
-(defmethod next-node ((node ast-node-cond))
-  (ast-node-cond-next node))
+(util:defstruct-read-only ast-node-cond
+  expr
+  then
+  else)
 
 (deftype binop-kind ()
   '(member
@@ -78,51 +37,26 @@
     :greater-than
     :greater-or-equal))
 
-(defstruct (ast-node-binop
-            (:include ast-node)
-            (:copier nil))
-  (kind (util:required-argument 'kind) :type binop-kind :read-only t)
-  (lhs (util:required-argument 'lhs) :type t :read-only t)
-  (rhs (util:required-argument 'rhs) :type t :read-only t))
-
-(defmethod next-node ((node ast-node-binop))
-  (ast-node-binop-next node))
+(util:defstruct-read-only ast-node-binop
+  (kind :type binop-kind)
+  lhs
+  rhs)
 
 ;;; TODO(topi): maybe this struct is slightly too general?
-(defstruct (ast-node-expression
-            (:include ast-node)
-            (:copier nil))
-  (expr (util:required-argument 'expr) :type t :read-only t))
+(util:defstruct-read-only ast-node-expression
+  expr)
 
-(defmethod next-node ((node ast-node-expression))
-  (ast-node-expression-next node))
+(util:defstruct-read-only ast-node-for
+  init
+  inc
+  cond
+  body)
 
-(defstruct (ast-node-for
-             (:include ast-node)
-             (:copier nil))
-  (init (util:required-argument 'init) :type t :read-only t)
-  (inc (util:required-argument 'inc) :type t :read-only t)
-  (cond (util:required-argument 'cond) :type t :read-only t)
-  (body (util:required-argument 'body) :type t :read-only t))
+(util:defstruct-read-only ast-node-loop
+  body)
 
-(defmethod next-node ((node ast-node-for))
-  (ast-node-for-next node))
-
-(defstruct (ast-node-loop
-             (:include ast-node)
-             (:copier nil))
-  (body (util:required-argument 'body) :type t :read-only t))
-
-(defmethod next-node ((node ast-node-loop))
-  (ast-node-loop-next node))
-
-(defstruct (ast-node-break
-             (:include ast-node)
-             (:copier nil))
-  (depth (util:required-argument 'depth) :type integer :read-only t))
-
-(defmethod next-node ((node ast-node-break))
-  (ast-node-break-next node))
+(util:defstruct-read-only ast-node-break
+  (depth :type integer))
 
 (defvar *local-variables* nil
   "Global variable for holding local variable objects.")
@@ -130,14 +64,12 @@
 (defstruct (object
             (:copier nil))
   (name (util:required-argument 'name) :type string :read-only t)
-  (offset 0 :type integer)
-  (next nil :type t))
+  (offset 0 :type integer))
 
-(defstruct (func
-            (:copier nil))
-  (body (util:required-argument 'body) :type t :read-only t)
-  (locals (util:required-argument 'locals) :type t :read-only t)
-  (stack-size 0 :type integer))
+(util:defstruct-read-only func
+  body
+  locals
+  (stack-size :type integer))
 
 (defun parse-statement-node (tokens)
   (alexandria:switch ((token-literal (first tokens)) :test #'string=)
@@ -232,15 +164,13 @@
             rest)))
 
 (defun parse-compound-statement-node (tokens)
-  (let* ((head (make-ast-node))
-         (cur head))
+  (let ((block-tree (list)))
     (loop :until (string= (token-literal (first tokens)) "}")
           :do (multiple-value-bind (node rest)
                   (parse-statement-node tokens)
-                (setf (ast-node-next cur) node)
-                (setf cur (ast-node-next cur))
+                (push node block-tree)
                 (setf tokens rest)))
-    (values (make-ast-node-block :body (ast-node-next head))
+    (values (make-ast-node-block :body (nreverse block-tree))
             (rest tokens))))
 
 (defun parse-expression-statement-node (tokens)
@@ -331,9 +261,7 @@
 
 (defun parse-primary-node (tokens)
   (flet ((find-local-var (name)
-           (loop :for obj := *local-variables*
-                   :then (setf obj (object-next obj))
-                 :until (null obj)
+           (loop :for obj :in *local-variables*
                  :do (when (string= name (object-name obj))
                        (return-from find-local-var obj)))))
     (cond
@@ -345,9 +273,10 @@
        (let* ((name (token-literal (first tokens)))
               (var (find-local-var name)))
          (when (null var)
-           (setf var (make-object :name name :next *local-variables*))
-           ;; New object should be in front of the list.
-           (setf *local-variables* var))
+           (let ((new-obj (make-object :name name)))
+             (setf var new-obj)
+             ;; New object needs to be in the front.
+             (push new-obj *local-variables*)))
          (values (make-ast-node-variable :object var)
                  (rest tokens))))
       ((string= (token-literal (first tokens)) "(")
@@ -357,32 +286,28 @@
       (t (error "Unexpected token value: ~a" tokens)))))
 
 (defun parse-program (tokens)
+  ;; Expect list of tokens to end in EOF
+  (assert (eq (token-kind (util:lastcar tokens)) :eof))
   (labels ((align-to (n align)
              "Round N to the nearest multiple of ALIGN."
              (* (ceiling n align) align))
-           (set-lvar-offsets (program)
+           (set-lvar-offsets (locals)
              (let ((offset 0))
-               (loop :for obj := (func-locals program)
-                       :then (setf obj (object-next obj))
-                     :until (null obj)
+               (loop :for obj :in locals
                      :do (progn
                            (incf offset 8)
                            (setf (object-offset obj) (- offset))))
-               (setf (func-stack-size program) (align-to offset 16)))
-             (values)))
-    (let* ((toks tokens)
-           (head (make-ast-node))
-           (cur head))
-      (loop :until (eq (token-kind (first toks)) :eof)
+               (align-to offset 16))))
+    (let* ((parse-tree (list)))
+      (loop :until (eq (token-kind (first tokens)) :eof)
             :do (multiple-value-bind (node rest)
-                    (parse-statement-node toks)
-                  (setf (ast-node-next cur) node)
-                  (setf cur (ast-node-next cur))
-                  (setf toks rest)))
-      (let ((program (make-func :body (ast-node-next head)
-                                :locals *local-variables*)))
-        (set-lvar-offsets program)
-        program))))
+                    (parse-statement-node tokens)
+                  (push node parse-tree)
+                  (setf tokens rest)))
+      (let ((stack-size (set-lvar-offsets *local-variables*)))
+        (make-func :body (nreverse parse-tree)
+                   :locals *local-variables*
+                   :stack-size stack-size)))))
 
 ;;;
 ;;; Parser Utilities
